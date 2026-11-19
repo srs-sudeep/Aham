@@ -1,0 +1,47 @@
+{
+  "categories": {
+    "title": "Categories",
+    "description": "Group items in your catalog.",
+    "empty": "No categories found.",
+    "new": "New category",
+    "edit": "Edit",
+    "delete": "Delete",
+    "detail": "Category detail",
+    "back": "Back to categories",
+    "columns": {
+      "name": "Name",
+      "description": "Description",
+      "actions": "Actions"
+    },
+    "fields": {
+      "name": "Name",
+      "description": "Description"
+    },
+    "filters": {
+      "search": "Search",
+      "searchPlaceholder": "Category name",
+      "apply": "Apply",
+      "reset": "Reset"
+    },
+    "form": {
+      "createTitle": "New category",
+      "save": "Save category",
+      "saving": "Saving…",
+      "cancel": "Cancel"
+    },
+    "validation": {
+      "nameRequired": "Name is required.",
+      "nameTooLong": "Name must be 80 characters or fewer.",
+      "descriptionTooLong": "Description must be 500 characters or fewer."
+    },
+    "deleteDialog": {
+      "title": "Delete category?",
+      "description": "“{{name}}” will be permanently removed. This cannot be undone."
+    },
+    "toast": {
+      "created": "Category created",
+      "updated": "Category updated",
+      "deleted": "Category deleted"
+    }
+  }
+}

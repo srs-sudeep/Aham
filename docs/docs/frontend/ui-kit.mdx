@@ -1,0 +1,52 @@
+---
+title: UI kit
+sidebar_position: 2
+---
+
+# UI kit
+
+`@aham/ui-kit` is the protected frontend baseline (mirrors backend `platform-kit`).
+
+## What it owns (example `web-spa`)
+
+- Design **tokens** and **color presets**
+- **Curated shadcn-style primitives** (~20) re-exported from `@aham/ui-kit/components` — avatar, badge, button, card, checkbox, dialog, dropdown-menu, input, label, scroll-area, select, separator, sheet, skeleton, sonner, switch, table, tabs, textarea, tooltip
+- **AppShell** layout primitives
+- **PreferencesProvider** — theme mode, preset, locale, density
+- Auth helpers / session storage conventions
+- Shared **API client** + query utilities
+- i18n bootstrap
+- Node **`dx` CLI** (`check`, `new-feature`, `rules`, `hook`)
+
+## Package exports (example)
+
+```text
+@aham/ui-kit
+@aham/ui-kit/components
+@aham/ui-kit/tokens.css
+@aham/ui-kit/tailwind-preset
+```
+
+## Import rules
+
+```ts
+// ✅
+import { Button } from '@aham/ui-kit/components'
+import { something } from '@aham/ui-kit'
+
+// ❌ raw internal paths, axios, fetch from views
+```
+
+## Template vs example drift
+
+`template/frontend` ui-kit is **ahead** of the checked-in `frontend/web-spa` kit (extra modules such as data/form/layout/feedback/patterns/tenancy). Regenerating from the template yields a richer kit than the example currently shows.
+
+## Protection
+
+Do not edit `packages/ui-kit` in a product app unless you are intentionally changing the baseline:
+
+```bash
+export DX_ALLOW_BASELINE=1
+```
+
+Prefer template / kit PRs, then regenerate or update consumers.

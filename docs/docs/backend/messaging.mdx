@@ -1,0 +1,54 @@
+---
+title: Messaging (Kafka)
+sidebar_position: 7
+---
+
+# Messaging (Kafka)
+
+Select `messaging=kafka` to enable async events.
+
+## What gets added
+
+- Kafka broker in Compose (KRaft — examples use `apache/kafka:3.9.0`)
+- FastStream integration in platform-kit
+- **Transactional outbox** — events committed with the same DB transaction as domain writes
+- `packages/contracts/` — append-only, versioned event schemas/topics
+- Optional subscribers in module `events.py`
+
+## Contracts
+
+Event classes live in the contracts package, for example:
+
+```text
+packages/contracts/src/contracts/events/
+```
+
+Example topic pattern: `example.item.created.v1`. Treat contracts as append-only: add new versions rather than breaking old payloads.
+
+:::note Example status
+Kafka variants ship the **infrastructure** and a contracts example. The `items` module in those examples does **not** yet publish to the outbox or define `events.py` — use the contracts package as the pattern when you wire real domain events.
+:::
+
+## When to use Kafka
+
+- Multiple services need the same domain fact
+- Work that must not block the request path
+- Integration with external consumers
+
+Prefer HTTP + `ServiceClient` for synchronous request/response between services.
+
+## Local run
+
+```bash
+docker compose up -d postgres kafka
+# Host clients (dx run on the host):
+# KAFKA_BOOTSTRAP_SERVERS=localhost:29092
+uv run dx run core-api
+```
+
+| Network | Bootstrap |
+|---|---|
+| Host → Kafka | `localhost:29092` |
+| Container → Kafka | internal `9092` (Compose service DNS) |
+
+Jaeger is typically available via `dx up --observability` → `http://localhost:16686`.

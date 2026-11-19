@@ -9,17 +9,25 @@
   "exports": {
     ".": "./src/index.ts",
     "./components": "./src/components/index.ts",
-    "./tokens.css": "./src/tokens/tokens.css",
-    "./tailwind-preset": "./src/tokens/tailwind-preset.ts"
+    "./data": "./src/data/index.ts",
+    "./form": "./src/form/index.ts",
+    "./layout": "./src/layout/index.ts",
+    "./feedback": "./src/feedback/index.ts",
+    "./patterns": "./src/patterns/index.ts",
+    "./testing": "./src/testing/index.ts",
+    "./tokens.css": "./src/tokens/tokens.css"
   },
   "scripts": {
     "build": "tsup src/cli/main.ts --format esm --dts --outDir dist/cli --clean",
     "dx": "tsx src/cli/main.ts",
-    "lint": "echo eslint-config-optional",
+    "lint": "eslint src --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-avatar": "^1.1.2",
     "@radix-ui/react-checkbox": "^1.1.3",
     "@radix-ui/react-dialog": "^1.1.4",
@@ -33,26 +41,36 @@
     "@radix-ui/react-tabs": "^1.1.2",
     "@radix-ui/react-tooltip": "^1.1.6",
     "@tanstack/react-query": "^5.62.8",
+    "@tanstack/react-table": "^8.20.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "i18next": "^24.2.0",
     "lucide-react": "^0.469.0",
+    "react-hook-form": "^7.54.2",
     "react-i18next": "^15.2.0",
     "sonner": "^1.7.1",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "ts-morph": "^24.0.0",
+    "zod": "^3.24.1"
   },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@storybook/react": "^8.5.0",
+    "@storybook/react-vite": "^8.5.0",
+    "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "eslint": "^9.17.0",
+    "storybook": "^8.5.0",
+    "tailwindcss": "^4.0.0",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
+    "vite": "^6.0.6",
     "vitest": "^2.1.8"
   }
 }

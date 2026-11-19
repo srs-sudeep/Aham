@@ -1,0 +1,50 @@
+---
+title: dx CLI
+sidebar_position: 8
+---
+
+# dx CLI
+
+`dx` is the backend developer experience CLI shipped inside platform-kit (`platform_kit.cli.main`, argparse).
+
+```bash
+uv run dx <command>
+```
+
+## Everyday commands
+
+| Command | Purpose |
+|---|---|
+| `dx check` | Full-repo structure / layering / RBAC / MEM / ASYNC / CODE rules |
+| `dx watch` | Editor-friendly watch mode |
+| `dx lint` / `dx fmt` | Ruff (+ service targeting) |
+| `dx test` | Pytest with service filters |
+| `dx run <service>` | Run a service locally |
+| `dx up` / `dx down` / `dx logs` | Compose helpers |
+| `dx up --observability` | Include Jaeger profile |
+| `dx db revision\|upgrade\|downgrade <service>` | Alembic |
+| `dx affected` | Changed targets (with nx/moon or built-in heuristics) |
+| `dx openapi` | Dump/validate OpenAPI |
+| `dx permissions` | Inspect permission map |
+| `dx token <service>` | Mint/dev tokens |
+| `dx rules` | List rule codes |
+| `dx hook` | Used by AI/editor hooks |
+
+## Generators
+
+| Command | Purpose |
+|---|---|
+| `dx new-service <name>` | Scaffold a service (`--with-example`, `--with-saas`) |
+| `dx new-saas <service>` | Identity + billing modules (non-micro) |
+| `dx new-module <service> <name>` | Scaffold a module |
+
+## Rules
+
+Run `uv run dx rules` for the full code list. Common families:
+
+- Structure / layering
+- RBAC on every route
+- ASYNC correctness
+- MEM / CODE hygiene (`CODE001` bans raw `session.commit()`)
+
+CI and pre-commit run **full-repo** `dx check`, not only the diff.

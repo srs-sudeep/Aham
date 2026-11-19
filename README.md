@@ -8,7 +8,8 @@ Aham/
 │   ├── backend/  # FastAPI + platform-kit
 │   └── frontend/ # Vite + React + ui-kit
 ├── backend/      # Example generated API kits
-└── frontend/     # Example generated UI kits
+├── frontend/     # Example generated UI kits
+└── docs/         # Docusaurus documentation site
 ```
 
 ## Generate
@@ -36,6 +37,16 @@ Copier question `platform_profile=saas` adds Redis, local IdP, tenancy, entitlem
 
 | Folder | Shape |
 |---|---|
-| `web-spa` | Vite SPA + ui-kit (shadcn, settings/theme/i18n, items feature) |
+| `web-spa` | Vite SPA + ui-kit (module→feature layout, catalog demo, settings/theme/i18n) |
 
 Details: [template/README.md](template/README.md) · [template/HANDOFF.md](template/HANDOFF.md)
+
+## Documentation
+
+Full docs (template, backend, frontend) live in [`docs/`](docs/) (Docusaurus).
+
+```bash
+cd docs
+npm install
+npm start    # http://localhost:3000
+```

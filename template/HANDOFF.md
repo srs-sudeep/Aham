@@ -21,6 +21,40 @@ template/
 - Example: `frontend/web-spa` (generated via copier `--skip-tasks`, then `pnpm install`)
 - Enforcement: CI workflow, pre-commit dx check, Claude hooks, Cursor rules
 
+## Frontend ERP module structure and dx commands
+
+Frontend product code is organised as **modules → features** (replaces the old flat `features/`):
+
+```
+apps/web/src/
+  app/        # PROTECTED: router, providers, registry (globs modules/*/module.ts)
+  core/       # PROTECTED: login, shell, home, /settings (theme/locale/density/regional), errors
+  modules/<module>/{module.ts,public.ts,locales,shared,features/<feature>}
+    # feature = {index.ts,api,hooks,model,views/{pages,components},routes,locales}
+```
+
+- `catalog` (items + categories) is the reference module: tenant-scoped keys factory, hooks via `useApi`,
+  `ListPage` + `QueryState`, MSW handlers (`VITE_USE_MOCKS=1`), colocated tests.
+- Cross-module imports only via `public.ts`; cross-feature only via the feature `index.ts`.
+- Full rules, import matrix and golden code: `frontend/CONVENTIONS.md` (plain Markdown, not rendered by Copier).
+  Agent entry points: `AGENTS.md.jinja`, `CLAUDE.md`, `.cursor/rules/*.mdc`.
+
+dx commands (run from the generated frontend root):
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm dx check [--format github]` | Full-repo architecture/style rules (hooks, pre-commit, CI) |
+| `pnpm dx rules` | List `FE-*` rule codes |
+| `pnpm new-module <name>` | Scaffold a module |
+| `pnpm new-feature <module>/<name>` | Scaffold a feature and register it in `module.ts` |
+| `pnpm gen-api <openapi-url>` | Generate `apps/web/src/lib/api-types.ts` |
+
+Testing/tooling added: Vitest + Testing Library setup (`apps/web/src/test/setup.ts`), colocated catalog tests,
+Playwright smoke (`apps/web/e2e`, `pnpm --filter <slug>/web e2e`; needs a generated project because
+`AuthenticatedLayout` is a `.jinja` file), Storybook for `packages/ui-kit` (`pnpm --filter @aham/ui-kit storybook`;
+theme/density toolbar). Dependencies were not installed in the template itself, so run `pnpm install` in a
+generated project to verify.
+
 ## Backend expansions (this pass)
 
 New `dx check` codes in platform-kit: `MEM001`, `MEM002`, `MEM003`, `CODE001`; broader `ASYNC001`. Tests added in `test_checks.py`.

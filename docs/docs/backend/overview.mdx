@@ -1,0 +1,66 @@
+---
+title: Overview
+sidebar_position: 1
+---
+
+# Backend overview
+
+Aham backends are **FastAPI** services built on a shared **platform-kit**. You rarely invent infrastructure — you add **modules** with a fixed layering and let `dx` / CI enforce it.
+
+## Shared stack
+
+| Layer | Choice |
+|---|---|
+| Language | Python 3.12+ |
+| HTTP | FastAPI + Uvicorn |
+| ORM / DB | SQLAlchemy 2 async + asyncpg + Alembic |
+| Settings | Pydantic Settings |
+| Logging | structlog |
+| Auth | JWT (PyJWT); SaaS adds refresh tokens in Redis |
+| Messaging | Optional Kafka via FastStream + transactional outbox |
+| Tooling | uv workspaces, Ruff, Pyright, pytest, `dx` CLI (argparse) |
+| Observability | OpenTelemetry extras + optional Jaeger |
+| Deploy shape | Docker image + Compose (no Kubernetes in template) |
+
+## Entrypoint pattern
+
+```python
+app = create_app(
+    settings=settings,
+    package="core_api",
+    role_permissions=ROLE_PERMISSIONS,
+)
+```
+
+Routers are auto-discovered from `modules/*/router.py` (plus optional `extra_routers`) and mounted under **`/api/v1`**.
+
+| Health | Path |
+|---|---|
+| Liveness | `/health/live` |
+| Readiness | `/health/ready` (503 when dependencies are degraded) |
+
+OpenAPI UI: `http://localhost:8001/docs` (host port **8001 → 8000** in every example).
+
+## Repo shapes at a glance
+
+See [Layouts & variants](./layouts.mdx) for the full matrix. Short version:
+
+- **Monolith** — one service, many modules
+- **Microservices** — many services, shared kit (+ contracts when Kafka)
+- **Polyrepo kit** — publishes the baseline
+- **Polyrepo service** — one service, kit pinned by git/path
+
+:::note
+Shipped micro examples (`mono-micro-kafka-nx`, `mono-micro-moon`) currently contain a **single** `core-api` with the `items` module. Extra services appear after regenerating with the right Copier answers (e.g. SaaS micro → `identity` + `billing` services).
+:::
+
+## Core docs in this section
+
+- [Architecture](./architecture.mdx) — layering and import rules
+- [Platform kit](./platform-kit.mdx) — what the baseline owns
+- [Modules](./modules.mdx) — how to add features
+- [SaaS spine](./saas-spine.mdx) — identity, tenancy, billing
+- [Messaging](./messaging.mdx) — Kafka + outbox
+- [dx CLI](./dx-cli.mdx) — everyday commands
+- [Testing & CI](./testing-ci.mdx)
+- [Examples](./examples.mdx) — folders under `backend/`

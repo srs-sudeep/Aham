@@ -1,0 +1,48 @@
+---
+title: Connecting to the API
+sidebar_position: 7
+---
+
+# Connecting to the API
+
+## Configuration
+
+```bash
+# frontend/web-spa/.env  (from .env.example)
+VITE_API_BASE_URL=http://localhost:8001
+VITE_DEFAULT_LOCALE=en
+```
+
+There is **no Vite proxy** — the browser calls `VITE_API_BASE_URL` directly. The SPA creates an API client that prefixes requests with this base URL and attaches the Bearer token from `localStorage` (`aham.auth.token`). Session principal is stored separately in `aham.auth.principal`.
+
+## Natural pairing
+
+| Side | Example | Port |
+|---|---|---|
+| API | `backend/mono-monolith` `core-api` | `8001` |
+| UI | `frontend/web-spa` | `5173` |
+
+## Path alignment (why mocks appear)
+
+| Layer | Paths today |
+|---|---|
+| Backend items | `GET /api/v1/items`, `GET /api/v1/items/{id}` |
+| SPA items feature | `GET /items`, `GET /items/{id}` (relative to base URL) |
+
+Because the feature omits the `/api/v1` prefix, real calls fail and the example **falls back to mock data**.
+
+Auth on the monolith:
+
+- `/api/v1/auth/login`, `/refresh`, `/switch-tenant`, …
+
+## Recommended integration order
+
+1. Point `VITE_API_BASE_URL` at the running monolith
+2. Align items feature paths with `/api/v1/items`
+3. Replace stub login with `/api/v1/auth/login` + refresh storage (`token` + `principal`)
+4. Plumb tenant switch into shell (SaaS)
+5. Optionally generate client types from OpenAPI into feature `api/` folders
+
+## CORS / cookies
+
+Dev typically uses bearer tokens from localStorage against `:8001`. If you move to cookie sessions, update kit auth helpers and CORS on the API intentionally — do not bypass the kit patterns.

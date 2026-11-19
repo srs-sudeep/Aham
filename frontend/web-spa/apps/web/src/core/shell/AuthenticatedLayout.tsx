@@ -1,0 +1,61 @@
+import { useEffect, useMemo } from "react";
+import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import {
+  AppShell,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useAuth,
+  useTenant,
+  useTranslation,
+} from "@aham/ui-kit";
+import { registeredModules } from "../../app/registry";
+import { buildAppNavGroups } from "./nav";
+
+function TenantSwitcher() {
+  const { t } = useTranslation();
+  const { tenants, tenantId, setTenantId } = useTenant();
+  if (tenants.length < 2) return null;
+  return (
+    <Select value={tenantId ?? undefined} onValueChange={setTenantId}>
+      <SelectTrigger className="h-8 w-40" aria-label={t("shell.tenant")}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {tenants.map((tenant) => (
+          <SelectItem key={tenant.id} value={tenant.id}>
+            {tenant.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export function AuthenticatedLayout() {
+  const navigate = useNavigate();
+  const { token } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navGroups = useMemo(() => buildAppNavGroups(registeredModules), []);
+
+  // Logging out only changes React state; send the user to /login explicitly.
+  useEffect(() => {
+    if (!token) void navigate({ to: "/login" });
+  }, [token, navigate]);
+
+  return (
+    <AppShell
+      brand="Web SPA"
+      navGroups={navGroups}
+      currentPath={pathname}
+      onNavigate={(to) => {
+        void navigate({ to });
+      }}
+      topbarExtra={<TenantSwitcher />}
+    >
+      <Outlet />
+    </AppShell>
+  );
+}

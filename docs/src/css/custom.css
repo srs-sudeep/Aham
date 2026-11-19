@@ -1,0 +1,76 @@
+:root {
+  --ifm-color-primary: #0f6e56;
+  --ifm-color-primary-dark: #0d634d;
+  --ifm-color-primary-darker: #0c5d48;
+  --ifm-color-primary-darkest: #0a4d3c;
+  --ifm-color-primary-light: #11795f;
+  --ifm-color-primary-lighter: #127f64;
+  --ifm-color-primary-lightest: #158f71;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.06);
+  --ifm-font-family-base: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --ifm-heading-font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --ifm-background-color: #f7faf8;
+  --ifm-hero-background: linear-gradient(145deg, #e8f5f0 0%, #f7faf8 45%, #eef2f7 100%);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #3dba95;
+  --ifm-color-primary-dark: #32a985;
+  --ifm-color-primary-darker: #2f9f7d;
+  --ifm-color-primary-darkest: #278367;
+  --ifm-color-primary-light: #52c3a2;
+  --ifm-color-primary-lighter: #5ec7a8;
+  --ifm-color-primary-lightest: #7fd2b8;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-background-color: #0f1412;
+  --ifm-hero-background: linear-gradient(145deg, #12201b 0%, #0f1412 50%, #152028 100%);
+}
+
+.hero--aham {
+  background: var(--ifm-hero-background);
+  padding: 4.5rem 0 3.5rem;
+}
+
+.hero--aham .hero__title {
+  font-size: 3.25rem;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+.hero--aham .hero__subtitle {
+  max-width: 36rem;
+  margin: 0.75rem auto 0;
+  opacity: 0.85;
+}
+
+.aham-feature-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin-top: 2rem;
+}
+
+.aham-feature-card {
+  border: 1px solid color-mix(in srgb, var(--ifm-color-primary) 18%, transparent);
+  border-radius: 12px;
+  padding: 1.25rem 1.35rem;
+  background: color-mix(in srgb, var(--ifm-background-surface-color, #fff) 92%, var(--ifm-color-primary) 8%);
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.aham-feature-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--ifm-color-primary) 45%, transparent);
+}
+
+.aham-feature-card h3 {
+  margin-bottom: 0.4rem;
+  font-size: 1.15rem;
+}
+
+.aham-feature-card p {
+  margin: 0;
+  opacity: 0.85;
+  font-size: 0.95rem;
+}

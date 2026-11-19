@@ -1,0 +1,54 @@
+---
+sidebar_position: 1
+slug: /intro
+title: Introduction
+---
+
+# Aham
+
+**Aham** is a Copier-driven platform scaffold. One template generates either a **FastAPI backend** or a **Vite React SPA**, and this repository also keeps example outputs for every common layout.
+
+```text
+Aham/
+├── template/          # Copier source (stack: backend | frontend)
+│   ├── backend/       # FastAPI + platform-kit
+│   └── frontend/      # Vite + React + ui-kit
+├── backend/           # Example generated API kits
+├── frontend/          # Example generated UI kits
+└── docs/              # This documentation site (Docusaurus)
+```
+
+## What you get
+
+| Area | Baseline | You write |
+|---|---|---|
+| Backend | `platform-kit` (RBAC, errors, logging, DB, health, messaging, SaaS helpers, `dx` CLI) | **Modules** under `services/*/modules/` |
+| Frontend | `@aham/ui-kit` (tokens, shadcn, AppShell, auth helpers, i18n, preferences, `dx` CLI) | **Features** under `apps/web/src/features/` |
+
+Structure is enforced in the editor, by AI hooks, at commit (`dx check`), and in CI. Wrong layers fail early instead of becoming tribal knowledge.
+
+## Mental model
+
+1. **Leads** own the kit (baseline). Changing it needs intent (`DX_ALLOW_BASELINE=1`).
+2. **Developers** add modules/features with `dx new-module` / `pnpm dx new-feature`.
+3. **Copier** keeps generated projects updatable with `uvx copier update --trust`.
+
+## Example outputs in this repo
+
+| Path | Shape |
+|---|---|
+| `backend/mono-monolith` | Modular monolith + SaaS spine (identity, billing, Redis) |
+| `backend/mono-micro-kafka-nx` | Microservices + Kafka + Nx (single `core-api` today) |
+| `backend/mono-micro-moon` | Microservices + moon (HTTP only; single `core-api`) |
+| `backend/poly-kit` | Shared platform-kit + contracts publisher |
+| `backend/poly-service-kafka` | Standalone service pinning the kit |
+| `frontend/web-spa` | Vite SPA + ui-kit + items list/detail |
+
+Backend `.copier-answers.yml` files are still from an older template path (missing `stack` / `platform_profile`). Only `frontend/web-spa` was generated from `./template`. See [Template overview](./template/overview.mdx).
+
+## Where to go next
+
+- [Getting started](./getting-started/overview.mdx) — install Copier and generate a project
+- [Template](./template/overview.mdx) — questions, tasks, and update flow
+- [Backend](./backend/overview.mdx) — layouts, modules, SaaS, Kafka, `dx`
+- [Frontend](./frontend/overview.mdx) — ui-kit, features, routes, API wiring

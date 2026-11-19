@@ -1,0 +1,42 @@
+---
+title: Updating projects
+sidebar_position: 4
+---
+
+# Updating projects
+
+Generated projects store answers in `.copier-answers.yml`. Pull template improvements with:
+
+```bash
+cd my-project
+uvx copier update --trust
+```
+
+## What update does
+
+1. Re-renders the project from the current template + stored answers
+2. Applies a three-way merge against your local changes
+3. Re-runs applicable `_tasks` when trusted
+
+## Tips
+
+- Commit before updating so conflicts are recoverable.
+- Prefer not to heavily edit protected baseline paths (`packages/platform-kit`, `packages/ui-kit`, CI scaffolding) — those should come from the template/kit.
+- If answers are outdated (missing `stack` / `platform_profile`), regenerate from a fresh copy or edit `.copier-answers.yml` carefully before update.
+- Example backends in this monorepo may still point at older template paths; see [HANDOFF](./handoff.mdx).
+
+## Regenerating an example in-tree
+
+```bash
+# From Aham root — illustrative
+uvx copier copy --trust --skip-tasks \
+  -d stack=backend \
+  -d repo_layout=monorepo \
+  -d architecture=monolith \
+  -d messaging=none \
+  -d platform_profile=saas \
+  -d repo_manager=none \
+  ./template /tmp/aham-mono
+```
+
+Then compare or replace the example folder intentionally (do not blindly overwrite without review).

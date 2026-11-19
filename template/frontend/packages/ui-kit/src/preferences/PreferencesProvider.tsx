@@ -21,6 +21,9 @@ type PreferencesContextValue = StoredPreferences & {
   setLocale: (locale: Locale) => void;
   setDensity: (density: Density) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  setTimezone: (timezone: string) => void;
+  setCurrency: (currency: string) => void;
+  setDateFormat: (dateFormat: string) => void;
   resolvedTheme: "light" | "dark";
 };
 
@@ -89,13 +92,14 @@ export function PreferencesProvider({
       setLocale: (locale) => update({ locale }),
       setDensity: (density) => update({ density }),
       setSidebarCollapsed: (sidebarCollapsed) => update({ sidebarCollapsed }),
+      setTimezone: (timezone) => update({ timezone }),
+      setCurrency: (currency) => update({ currency }),
+      setDateFormat: (dateFormat) => update({ dateFormat }),
     }),
     [prefs, resolvedTheme, update],
   );
 
-  return (
-    <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>
-  );
+  return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
 }
 
 export function usePreferences(): PreferencesContextValue {

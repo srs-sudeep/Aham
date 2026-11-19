@@ -1,8 +1,12 @@
-import { createApiClient } from "@aham/ui-kit";
-
-const TOKEN_KEY = "aham.auth.token";
+import { createApiClient, getStoredTenantId } from "@aham/ui-kit";
 
 export const apiClient = createApiClient({
   baseUrl: import.meta.env.VITE_API_BASE_URL || "{{ api_base_url }}",
-  getToken: () => (typeof window === "undefined" ? null : window.localStorage.getItem(TOKEN_KEY)),
+  getToken: () => localStorage.getItem("aham.auth.token"),
+  getTenantId: () => getStoredTenantId(),
+  onUnauthorized: () => {
+    localStorage.removeItem("aham.auth.token");
+    localStorage.removeItem("aham.auth.principal");
+    window.location.assign("/login");
+  },
 });

@@ -1,0 +1,85 @@
+---
+title: SaaS spine
+sidebar_position: 6
+---
+
+# SaaS spine
+
+When `platform_profile=saas` (default for new backends), Copier and `dx new-saas` add a local multi-tenant SaaS baseline.
+
+## What you get
+
+| Capability | Details |
+|---|---|
+| Local IdP | Register/login; access JWT + hashed refresh in Redis |
+| Tenancy | Memberships, org switcher, `tid` claim in JWT |
+| RBAC roles | DB tables + `PermissionResolver` (Redis → DB → code fallback) |
+| Entitlements | Plans, features, quotas — `require_feature` / `require_quota` |
+| Audit | Enterprise-shaped audit trail helpers |
+| Redis | Required (`REDIS_URL`) for refresh + rate limit |
+| Billing module | Plans/subscriptions; default **ManualProvider** |
+
+## Routes (mono-monolith, all under `/api/v1`)
+
+### Identity — `/auth/*`
+
+| Area | Paths |
+|---|---|
+| Session | `/auth/register`, `/login`, `/select-tenant`, `/refresh`, `/logout` |
+| Tenancy | `/auth/tenants`, `/switch-tenant` |
+| Invites | `/auth/invitations`, `/invitations/accept` |
+| Admin | `/auth/users/disable`, `/auth/audit` |
+| MFA | `/auth/mfa/enroll`, `/confirm`, `/complete` |
+| SSO | `/auth/sso/start`, `/sso/callback`, `/sso/oidc` |
+| API keys | `/auth/api-keys`, `/auth/api-keys/{key_id}`, `/auth/scim-token` |
+
+### SCIM — `/scim/v2/*`
+
+Mounted via identity `extra_routers` (not under `/auth`):
+
+- `/scim/v2/Users`
+
+### Billing — `/billing/*`
+
+| Paths |
+|---|
+| `GET /billing/plans` |
+| `GET /billing/subscription` |
+| `POST /billing/subscription/activate` \| `past-due` \| `cancel` |
+| `POST /billing/overrides` |
+| `POST /billing/checkout` |
+| `POST /billing/webhooks/stripe` |
+
+Phase-2 routes are **scaffolds** with Protocol ports in `platform_kit.providers`. Stripe/OIDC need real config (`platform-kit[stripe]`, `STRIPE_*`, IdP settings) before they behave as production integrations.
+
+## Scaffolding
+
+```bash
+# Monolith / polyrepo_service — modules inside the service
+uv run dx new-saas core-api
+
+# Microservices — separate services (post-copy does this)
+uv run dx new-service identity --with-saas
+uv run dx new-service billing --with-saas
+```
+
+Compose:
+
+```bash
+docker compose up -d postgres redis
+# env: services/core-api/.env with REDIS_URL + PLATFORM_PROFILE=saas
+```
+
+## Domain tables & tenancy
+
+- Prefer `TenantScopedMixin` on tenant-owned models
+- Use RLS helpers for defense-in-depth against IDOR
+- Remember: route `permission=` ≠ row-level ownership
+
+## API-only profile
+
+`platform_profile=api` skips the local IdP/Redis SaaS spine and verifies JWTs from an external IdP (JWKS). Use when auth lives elsewhere.
+
+## Example
+
+`backend/mono-monolith` is the reference SaaS monolith with identity + billing + items + Redis in compose. The example currently ships **items** API/unit tests; identity/billing are covered mainly by kit tests (`test_saas_spine.py`) — add service-level tests when you change those modules.

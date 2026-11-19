@@ -1,0 +1,9 @@
+dist
+node_modules
+pnpm-lock.yaml
+coverage
+*.jinja
+**/public/mockServiceWorker.js
+storybook-static
+playwright-report
+test-results

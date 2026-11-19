@@ -1,0 +1,75 @@
+{
+  "items": {
+    "title": "Items",
+    "description": "Products and services in your catalog.",
+    "empty": "No items match your filters.",
+    "new": "New item",
+    "edit": "Edit",
+    "delete": "Delete",
+    "detail": "Item detail",
+    "back": "Back to items",
+    "columns": {
+      "name": "Name",
+      "sku": "SKU",
+      "status": "Status",
+      "category": "Category",
+      "price": "Price",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "draft": "Draft"
+    },
+    "filters": {
+      "search": "Search",
+      "searchPlaceholder": "Name or SKU",
+      "status": "Status",
+      "allStatuses": "All statuses",
+      "apply": "Apply",
+      "reset": "Reset"
+    },
+    "fields": {
+      "name": "Name",
+      "sku": "SKU",
+      "status": "Status",
+      "category": "Category",
+      "price": "Price",
+      "currency": "Currency",
+      "description": "Description"
+    },
+    "form": {
+      "createTitle": "New item",
+      "createDescription": "Add a product or service to the catalog.",
+      "editTitle": "Edit item",
+      "editDescription": "Update the item details.",
+      "general": "General",
+      "pricing": "Pricing",
+      "save": "Save item",
+      "saving": "Saving…",
+      "cancel": "Cancel"
+    },
+    "validation": {
+      "nameRequired": "Name is required.",
+      "nameTooLong": "Name must be 120 characters or fewer.",
+      "skuRequired": "SKU is required.",
+      "skuTooLong": "SKU must be 64 characters or fewer.",
+      "priceInvalid": "Enter a valid non-negative number.",
+      "descriptionTooLong": "Description must be 1000 characters or fewer."
+    },
+    "pricing": {
+      "title": "Pricing",
+      "price": "Price",
+      "none": "No price set"
+    },
+    "deleteDialog": {
+      "title": "Delete item?",
+      "description": "“{{name}}” will be permanently removed. This cannot be undone."
+    },
+    "toast": {
+      "created": "Item created",
+      "updated": "Item updated",
+      "deleted": "Item deleted"
+    }
+  }
+}

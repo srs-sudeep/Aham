@@ -1,0 +1,86 @@
+{
+  "common": {
+    "cancel": "キャンセル",
+    "confirm": "確認",
+    "save": "保存",
+    "saving": "保存中…",
+    "create": "作成",
+    "edit": "編集",
+    "delete": "削除",
+    "back": "戻る",
+    "view": "表示",
+    "search": "検索",
+    "reset": "リセット",
+    "all": "すべて",
+    "none": "なし",
+    "actions": "操作",
+    "notAvailable": "—"
+  },
+  "shell": {
+    "signedIn": "ログイン中",
+    "logout": "ログアウト",
+    "home": "ホーム",
+    "settings": "設定",
+    "tenant": "テナント"
+  },
+  "login": {
+    "title": "サインイン",
+    "subtitle": "ローカル開発用のモックログイン",
+    "email": "メール",
+    "submit": "続行",
+    "hint": "カタログ権限を持つモックユーザーで入ります"
+  },
+  "home": {
+    "title": "ダッシュボード",
+    "subtitle": "モジュールと機能は固定のコアシェルに接続されます",
+    "welcome": "おかえりなさい、{{name}} さん。",
+    "quickLinks": "機能へ移動",
+    "empty": "利用可能な機能がまだありません。"
+  },
+  "forbidden": {
+    "title": "権限がありません",
+    "body": "このページを表示する権限がありません。",
+    "action": "ホームへ戻る"
+  },
+  "notFound": {
+    "title": "見つかりません",
+    "body": "ページが存在しません。",
+    "action": "ホームへ戻る"
+  },
+  "routeError": {
+    "title": "問題が発生しました",
+    "body": "このページを表示できませんでした。",
+    "retry": "再試行"
+  },
+  "settings": {
+    "title": "設定",
+    "subtitle": "外観・言語・地域設定",
+    "appearance": "外観",
+    "appearanceDescription": "テーマ、カラープリセット、表示密度。",
+    "themeMode": "テーマ",
+    "colorPreset": "カラーテーマ",
+    "density": "密度",
+    "light": "ライト",
+    "dark": "ダーク",
+    "system": "システム",
+    "comfortable": "標準",
+    "compact": "コンパクト",
+    "preset": {
+      "default": "デフォルト",
+      "ocean": "オーシャン",
+      "forest": "フォレスト",
+      "contrast": "ハイコントラスト"
+    },
+    "language": "言語",
+    "languageDescription": "表示言語。",
+    "locale": {
+      "en": "English",
+      "ja": "日本語"
+    },
+    "regional": "地域",
+    "regionalDescription": "タイムゾーン、通貨、日付形式。",
+    "timezone": "タイムゾーン",
+    "currency": "通貨",
+    "dateFormat": "日付形式"
+  }
+}

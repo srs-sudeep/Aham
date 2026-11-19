@@ -11,7 +11,7 @@ export function Heading({
   className,
   ...props
 }: React.HTMLAttributes<HTMLHeadingElement> & { level?: 1 | 2 | 3 }) {
-  const Tag = (`h${level}` as const);
+  const Tag = `h${level}` as const;
   return <Tag className={cn(headingSizes[level], className)} {...props} />;
 }
 

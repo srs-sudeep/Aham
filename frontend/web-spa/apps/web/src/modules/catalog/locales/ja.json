@@ -1,0 +1,13 @@
+{
+  "catalog": {
+    "title": "カタログ",
+    "categoryPicker": {
+      "placeholder": "カテゴリを選択",
+      "none": "カテゴリなし",
+      "loading": "カテゴリを読み込み中…"
+    },
+    "itemPicker": {
+      "placeholder": "アイテムを選択"
+    }
+  }
+}

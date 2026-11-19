@@ -1,0 +1,48 @@
+---
+title: Testing & CI
+sidebar_position: 9
+---
+
+# Testing & CI
+
+## Test types
+
+| Kind | Location | Expectation |
+|---|---|---|
+| API | `tests/api/` | Real HTTP + auth; happy path, 401, 403, 404 envelope, 422 |
+| Unit | `tests/unit/` | Service + fake repository |
+| Architecture | `tests/test_architecture.py` | RBAC + structure invariants |
+| Kit | `packages/platform-kit/tests/` | Baseline unit tests (incl. SaaS spine) |
+| Fuzz | CI | Schemathesis against OpenAPI (`/openapi.json`) |
+
+Coverage gate: **`fail_under = 80`** in template `pyproject.toml`.
+
+## Local loop
+
+```bash
+uv run dx fmt
+uv run dx lint --service core-api
+uv run dx test --service core-api
+uv run dx check
+```
+
+## Pre-commit
+
+Typical hooks: ruff, format, uv lock, `dx check`, pyright, gitleaks (+ standard pre-commit-hooks).
+
+## GitHub Actions (template)
+
+Approximate pipeline:
+
+1. Quality (lint/type)
+2. Affected tests — Postgres (**+ Redis** for SaaS monolith CI)
+3. OpenAPI fuzz / Schemathesis (service port 8000 in CI)
+4. Docker build
+5. Microservices: OpenAPI breaking-change check (oasdiff)
+6. Poly-kit: release on `v*` tags
+
+## Editor / AI enforcement
+
+- Claude hooks and Cursor `.mdc` rules point at `AGENTS.md`
+- Baseline paths blocked unless `DX_ALLOW_BASELINE=1`
+- Commit/CI still run full-repo `dx check`

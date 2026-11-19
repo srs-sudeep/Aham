@@ -3,8 +3,13 @@ description: Frontend project conventions
 alwaysApply: true
 ---
 
-- Features live under `apps/web/src/features/<name>/{api,hooks,views,routes,locales}`.
+- Monorepo: `apps/web` (Vite SPA) + `packages/ui-kit` (design-system baseline + `dx` CLI).
+- Read `CONVENTIONS.md` (folder tree, import matrix, golden code) before adding code.
+- Product code lives in `apps/web/src/modules/<module>/{module.ts,public.ts,shared,features/<feature>}`.
+- **Protected paths** (edit only with `DX_ALLOW_BASELINE=1`): `packages/ui-kit`, `apps/web/src/app`, `apps/web/src/core`.
+- Scaffold with `pnpm new-module <name>` / `pnpm new-feature <module>/<name>`; never hand-roll the layout.
 - Import UI only from `@aham/ui-kit` / `@aham/ui-kit/components`.
 - Core routes (`login`, shell, `settings`, 403, 404) are fixed — do not reinvent them.
-- Theme/locale only via PreferencesProvider / `/settings`.
+- Theme/locale/regional formats only via PreferencesProvider / `/settings`.
+- Use `VITE_USE_MOCKS=1 pnpm dev` for MSW-backed local data.
 - Run `pnpm dx check` (full repo) before finishing.

@@ -1,10 +1,24 @@
 ---
-description: Feature module rules
-globs: apps/web/src/features/**/*
+description: Module and feature structure and layering
+globs: apps/web/src/modules/**/*
 ---
 
-- views: UI + hooks only; no fetch/apiClient
-- hooks: TanStack Query only; no JSX
-- api: HTTP only; no React
-- routes: path + permission; no business logic
-- locales: all user-facing copy
+Hierarchy: `modules/<module>/{module.ts,public.ts,shared,features/<feature>}`; a feature is
+`{index.ts,api,hooks,model,views/{pages,components},routes,locales}`. Features never nest.
+
+Layering (see the import matrix in `CONVENTIONS.md`):
+
+- `views`: UI + hooks + model only; no `api/`, `fetch`, `apiClient`, `axios` (FE-LAY001/005)
+- `hooks`: TanStack Query via `useApi()`; no JSX, no `views` imports (FE-LAY002)
+- `api`: HTTP + tenant-scoped keys factory (`all(tenantId)` first); no React/hooks/views (FE-LAY003)
+- `model`: zod schemas, constants, mappers; pure TS (FE-LAY004)
+- `routes`: path + `permission` + search validation; no business logic (FE-RBAC001)
+- `locales`: all copy, `en` and `ja` in sync
+- `index.ts`: `defineFeature({ id, routes, nav, locales })`; `module.ts`: `defineModule({ ..., features })`
+
+Boundaries:
+
+- Other features: import only their `index.ts` (FE-IMPORT001)
+- Other modules: import only their `public.ts` (FE-STR012)
+- Pages use `ListPage` / `DetailPage` / `FormPage` + `QueryState`
+- Colocate `*.test.ts[x]`; use `TestProviders` from `@aham/ui-kit/testing`

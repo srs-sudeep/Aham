@@ -1,0 +1,49 @@
+---
+title: Handoff & status
+sidebar_position: 5
+---
+
+# Handoff & status
+
+Summary of `template/HANDOFF.md` — what is done and what remains.
+
+## Done
+
+### Frontend
+
+- ui-kit: tokens, color presets, curated shadcn primitives, AppShell, PreferencesProvider, i18n, api/query helpers, Node `dx check`
+- Fixed core routes including `/settings`
+- Feature contract: `api` / `hooks` / `views` / `routes` / `locales`
+- Example: `frontend/web-spa` (generated with `copier --skip-tasks`, then `pnpm install`)
+- Enforcement: CI, pre-commit, Claude hooks, Cursor rules
+
+### Backend
+
+- FastAPI platform template with layout matrix
+- New `dx check` codes: `MEM001`–`MEM003`, `CODE001`, broader `ASYNC001`
+- SaaS spine: Redis, TokenIssuer/refresh, tenancy + RLS helpers, entitlements, audit, provider ports
+- `dx new-saas` / post-copy scaffolding
+- Example: `backend/mono-monolith` with identity + billing + Redis
+
+### SaaS Phase 2 (implemented as scaffolds)
+
+Per HANDOFF / template README — HTTP scaffolds + Protocol ports exist; production wiring still needs config:
+
+- OIDC SSO, SCIM Users, API keys, TOTP MFA
+- Stripe optional (`platform-kit[stripe]` + `STRIPE_*`)
+
+## Next steps
+
+1. Regenerate remaining backend examples from `./template` with `stack=backend` + `platform_profile=saas` where desired (answers files are still pre-`stack` / old `_src_path`)
+2. Runtime-verify: register/login/switch-tenant, feature/quota gates, RLS IDOR tests
+3. Run full `uv run dx test` / Docker / Kafka paths across examples
+4. Optional: `stack: full` monorepo running both checkers
+5. Prefer `pnpm approve-builds --all` once after FE install
+6. Stricter ESLint flat config when ready (lint scripts are placeholders today)
+
+## Open items
+
+- CI providers beyond GitHub Actions
+- Real CODEOWNERS / JWKS / production kit git URL
+- Preferences API sync (localStorage only for now — key `aham.preferences.v1`)
+- OpenAPI codegen into feature `api/` folders

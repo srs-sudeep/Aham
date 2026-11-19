@@ -1,0 +1,90 @@
+---
+title: Local development
+sidebar_position: 3
+---
+
+# Local development
+
+## Backend example — mono-monolith (SaaS)
+
+Env files belong **next to the service** (compose and `dx run` load `services/core-api/.env`):
+
+```bash
+cd backend/mono-monolith
+cp .env.example services/core-api/.env
+uv sync --all-packages
+docker compose up -d postgres redis
+uv run dx db upgrade core-api
+uv run dx run core-api
+```
+
+| Endpoint | URL |
+|---|---|
+| API | `http://localhost:8001` (maps to container `8000`) |
+| OpenAPI | `http://localhost:8001/docs` |
+| Liveness | `http://localhost:8001/health/live` |
+| Readiness | `http://localhost:8001/health/ready` |
+
+Dev JWT helpers:
+
+```bash
+uv run dx token core-api --all
+```
+
+Optional Jaeger: `uv run dx up --observability` → UI on `http://localhost:16686`.
+
+## Backend example — Kafka microservice
+
+```bash
+cd backend/mono-micro-kafka-nx   # or poly-service-kafka / mono-micro-moon (no Kafka)
+cp .env.example services/core-api/.env   # poly-service-kafka: cp .env.example .env
+uv sync --all-packages
+docker compose up -d postgres kafka      # moon: postgres only
+uv run dx db upgrade core-api
+uv run dx run core-api
+```
+
+Host Kafka bootstrap (examples): **`localhost:29092`** (`KAFKA_BOOTSTRAP_SERVERS` in `.env.example`). Internal broker port `9092` is for containers only.
+
+## Frontend example — web-spa
+
+```bash
+cd frontend/web-spa
+cp .env.example .env
+# VITE_API_BASE_URL=http://localhost:8001
+# VITE_DEFAULT_LOCALE=en
+pnpm install
+pnpm dev
+```
+
+- SPA: `http://localhost:5173`
+- Settings: theme mode, **color preset**, locale (en/ja), density
+- Items feature: **list + detail** only; calls `/items` relative to the API base and falls back to mocks on failure
+
+## Quality gates (run before finishing work)
+
+### Backend
+
+```bash
+uv run dx fmt
+uv run dx lint --service core-api
+uv run dx test --service core-api
+uv run dx check
+```
+
+### Frontend
+
+```bash
+pnpm dx check
+pnpm test
+pnpm build
+```
+
+## Pairing SPA + API
+
+| Process | Port |
+|---|---|
+| `core-api` (mono-monolith) | `8001 → 8000` |
+| `web-spa` | `5173` |
+
+Login in the SPA is a **dev stub** (`aham.auth.token` + `aham.auth.principal`). Real auth lives under `/api/v1/auth/*` on the SaaS monolith. Items CRUD on the API is under `/api/v1/items`. See [Connecting to the API](../frontend/connecting-api.mdx).

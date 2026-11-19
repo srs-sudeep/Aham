@@ -1,0 +1,13 @@
+{
+  "catalog": {
+    "title": "Catalog",
+    "categoryPicker": {
+      "placeholder": "Select a category",
+      "none": "No category",
+      "loading": "Loading categories…"
+    },
+    "itemPicker": {
+      "placeholder": "Select an item"
+    }
+  }
+}

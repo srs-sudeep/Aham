@@ -1,0 +1,47 @@
+{
+  "categories": {
+    "title": "カテゴリ",
+    "description": "カタログのアイテムを分類します。",
+    "empty": "カテゴリが見つかりません。",
+    "new": "カテゴリを作成",
+    "edit": "編集",
+    "delete": "削除",
+    "detail": "カテゴリ詳細",
+    "back": "一覧へ戻る",
+    "columns": {
+      "name": "名前",
+      "description": "説明",
+      "actions": "操作"
+    },
+    "fields": {
+      "name": "名前",
+      "description": "説明"
+    },
+    "filters": {
+      "search": "検索",
+      "searchPlaceholder": "カテゴリ名",
+      "apply": "適用",
+      "reset": "リセット"
+    },
+    "form": {
+      "createTitle": "カテゴリを作成",
+      "save": "カテゴリを保存",
+      "saving": "保存中…",
+      "cancel": "キャンセル"
+    },
+    "validation": {
+      "nameRequired": "名前は必須です。",
+      "nameTooLong": "名前は80文字以内で入力してください。",
+      "descriptionTooLong": "説明は500文字以内で入力してください。"
+    },
+    "deleteDialog": {
+      "title": "カテゴリを削除しますか？",
+      "description": "「{{name}}」を完全に削除します。この操作は元に戻せません。"
+    },
+    "toast": {
+      "created": "カテゴリを作成しました",
+      "updated": "カテゴリを更新しました",
+      "deleted": "カテゴリを削除しました"
+    }
+  }
+}

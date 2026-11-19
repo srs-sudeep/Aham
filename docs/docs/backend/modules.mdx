@@ -1,0 +1,68 @@
+---
+title: Modules
+sidebar_position: 5
+---
+
+# Modules
+
+A feature is a **module**. Always create with:
+
+```bash
+uv run dx new-module <service> <plural_snake_name>
+# example
+uv run dx new-module core-api purchase_orders
+```
+
+This scaffolds the allowed files and updates `Resource` / permissions scaffolding as designed by the kit.
+
+## Layout reminder
+
+```text
+src/<package>/modules/<module>/
+  router.py
+  schemas.py
+  service.py
+  repository.py
+  models.py
+  dependencies.py
+  errors.py         # optional
+  events.py         # optional
+  constants.py      # optional
+  phase2.py         # optional (SaaS scaffolds)
+  scim_router.py    # optional (identity SCIM)
+```
+
+## Endpoint checklist
+
+- `async def`
+- `permission=` (or justified `PUBLIC`)
+- `summary=`
+- Explicit return type (schema)
+- Thin router: parse → service → return
+
+## Service checklist
+
+- Class named `<Entity>Service`
+- No FastAPI imports
+- Raise kit/domain errors
+- Single commit per write use-case via `await self.repo.commit()`
+
+## Tests required with every module change
+
+- `tests/api/test_<module>.py` — HTTP + real auth: happy path, 401, 403, 404 envelope, 422 fields
+- `tests/unit/test_<module>_service.py` — service + fake repository
+- Never delete/skip `tests/test_architecture.py`
+
+:::note Example gap
+`mono-monolith` currently ships API/unit tests for **items** only. Identity/billing rely on kit-level SaaS tests until you add service tests for those modules.
+:::
+
+## Definition of done
+
+```bash
+uv run dx fmt
+uv run dx lint --service <service>
+uv run dx test --service <service>
+```
+
+Avoid `# dx: ignore`, `# type: ignore`, `# noqa` without a justifying comment.

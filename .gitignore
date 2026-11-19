@@ -33,6 +33,10 @@ out/
 .turbo/
 *.tsbuildinfo
 
+# Docusaurus
+docs/.docusaurus/
+docs/build/
+
 # Tooling
 *.log
 .pre-commit/

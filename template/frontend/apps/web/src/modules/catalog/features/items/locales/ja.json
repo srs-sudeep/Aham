@@ -1,0 +1,75 @@
+{
+  "items": {
+    "title": "アイテム",
+    "description": "カタログの商品とサービス。",
+    "empty": "条件に一致するアイテムがありません。",
+    "new": "アイテムを作成",
+    "edit": "編集",
+    "delete": "削除",
+    "detail": "アイテム詳細",
+    "back": "一覧へ戻る",
+    "columns": {
+      "name": "名前",
+      "sku": "SKU",
+      "status": "ステータス",
+      "category": "カテゴリ",
+      "price": "価格",
+      "actions": "操作"
+    },
+    "status": {
+      "active": "有効",
+      "inactive": "無効",
+      "draft": "下書き"
+    },
+    "filters": {
+      "search": "検索",
+      "searchPlaceholder": "名前または SKU",
+      "status": "ステータス",
+      "allStatuses": "すべてのステータス",
+      "apply": "適用",
+      "reset": "リセット"
+    },
+    "fields": {
+      "name": "名前",
+      "sku": "SKU",
+      "status": "ステータス",
+      "category": "カテゴリ",
+      "price": "価格",
+      "currency": "通貨",
+      "description": "説明"
+    },
+    "form": {
+      "createTitle": "アイテムを作成",
+      "createDescription": "カタログに商品またはサービスを追加します。",
+      "editTitle": "アイテムを編集",
+      "editDescription": "アイテムの詳細を更新します。",
+      "general": "基本情報",
+      "pricing": "価格",
+      "save": "アイテムを保存",
+      "saving": "保存中…",
+      "cancel": "キャンセル"
+    },
+    "validation": {
+      "nameRequired": "名前は必須です。",
+      "nameTooLong": "名前は120文字以内で入力してください。",
+      "skuRequired": "SKU は必須です。",
+      "skuTooLong": "SKU は64文字以内で入力してください。",
+      "priceInvalid": "0以上の有効な数値を入力してください。",
+      "descriptionTooLong": "説明は1000文字以内で入力してください。"
+    },
+    "pricing": {
+      "title": "価格",
+      "price": "価格",
+      "none": "価格が未設定です"
+    },
+    "deleteDialog": {
+      "title": "アイテムを削除しますか？",
+      "description": "「{{name}}」を完全に削除します。この操作は元に戻せません。"
+    },
+    "toast": {
+      "created": "アイテムを作成しました",
+      "updated": "アイテムを更新しました",
+      "deleted": "アイテムを削除しました"
+    }
+  }
+}

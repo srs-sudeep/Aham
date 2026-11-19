@@ -7,9 +7,21 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: format-check
+        name: prettier (format:check)
+        entry: pnpm format:check
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: typecheck
         name: typecheck
         entry: pnpm typecheck
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: lint
+        name: eslint
+        entry: pnpm lint
         language: system
         pass_filenames: false
         always_run: true

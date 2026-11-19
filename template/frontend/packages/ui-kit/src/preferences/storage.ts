@@ -6,6 +6,9 @@ export type StoredPreferences = {
   locale: "en" | "ja";
   density: "comfortable" | "compact";
   sidebarCollapsed: boolean;
+  timezone?: string;
+  currency?: string;
+  dateFormat?: string;
 };
 
 export const defaultPreferences: StoredPreferences = {
@@ -14,6 +17,9 @@ export const defaultPreferences: StoredPreferences = {
   locale: "en",
   density: "comfortable",
   sidebarCollapsed: false,
+  timezone: "UTC",
+  currency: "USD",
+  dateFormat: "yyyy-MM-dd",
 };
 
 export function loadPreferences(): StoredPreferences {

@@ -4,10 +4,7 @@ import type { Locale } from "../tokens/presets";
 
 export type ResourceMap = Record<string, Record<string, unknown>>;
 
-export function createI18n(options: {
-  defaultLocale: Locale;
-  resources: ResourceMap;
-}) {
+export function createI18n(options: { defaultLocale: Locale; resources: ResourceMap }) {
   const instance = i18n.createInstance();
   void instance.use(initReactI18next).init({
     lng: options.defaultLocale,

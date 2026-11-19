@@ -1,0 +1,49 @@
+---
+title: Overview
+sidebar_position: 1
+---
+
+# Getting started
+
+This guide takes you from zero to a generated Aham project and a local run of the example stacks.
+
+## Prerequisites
+
+### Backend
+
+| Tool | Notes |
+|---|---|
+| [uv](https://docs.astral.sh/uv/) | Python package/workspace manager |
+| Python 3.12+ | Selected during Copier |
+| Docker + Compose | Postgres, Redis (SaaS), Kafka (optional) |
+| Copier ≥ 9.4 | Via `uvx copier` |
+
+### Frontend
+
+| Tool | Notes |
+|---|---|
+| Node ≥ 20 | Required by Vite / ui-kit |
+| pnpm | Workspace package manager |
+| Copier ≥ 9.4 | Via `uvx copier` |
+
+## Two ways to explore
+
+1. **Use an example already in this repo** — fastest for learning (`backend/mono-monolith`, `frontend/web-spa`).
+2. **Generate a fresh project** from `./template` — use this when starting real work.
+
+```bash
+# From the Aham repo root
+uvx copier copy --trust ./template my-new-project
+```
+
+You will be asked `stack: backend | frontend`, then layout-specific questions. Details: [Generate a project](./generate-project.mdx).
+
+## Recommended first path
+
+If you want the full SaaS experience locally:
+
+1. Run **`backend/mono-monolith`** (identity + billing + items, Postgres + Redis on compose).
+2. Run **`frontend/web-spa`** pointed at `http://localhost:8001`.
+3. Open API docs at `http://localhost:8001/docs` and the SPA at `http://localhost:5173`.
+
+See [Local development](./local-dev.mdx) for exact commands.

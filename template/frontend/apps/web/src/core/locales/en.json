@@ -1,0 +1,86 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "saving": "Saving…",
+    "create": "Create",
+    "edit": "Edit",
+    "delete": "Delete",
+    "back": "Back",
+    "view": "View",
+    "search": "Search",
+    "reset": "Reset",
+    "all": "All",
+    "none": "None",
+    "actions": "Actions",
+    "notAvailable": "—"
+  },
+  "shell": {
+    "signedIn": "Signed in",
+    "logout": "Log out",
+    "home": "Home",
+    "settings": "Settings",
+    "tenant": "Tenant"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Dev login for local development",
+    "email": "Email",
+    "submit": "Continue",
+    "hint": "Uses a mock principal with catalog permissions"
+  },
+  "home": {
+    "title": "Dashboard",
+    "subtitle": "Modules and features plug into the fixed core shell",
+    "welcome": "Welcome back, {{name}}.",
+    "quickLinks": "Jump to a feature",
+    "empty": "No features are available for your account yet."
+  },
+  "forbidden": {
+    "title": "Forbidden",
+    "body": "You do not have permission to view this page.",
+    "action": "Back to home"
+  },
+  "notFound": {
+    "title": "Not found",
+    "body": "That page does not exist.",
+    "action": "Back to home"
+  },
+  "routeError": {
+    "title": "Something went wrong",
+    "body": "This page failed to render.",
+    "retry": "Try again"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Appearance, language, and regional formats",
+    "appearance": "Appearance",
+    "appearanceDescription": "Theme, color preset, and layout density.",
+    "themeMode": "Theme mode",
+    "colorPreset": "Color theme",
+    "density": "Density",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "comfortable": "Comfortable",
+    "compact": "Compact",
+    "preset": {
+      "default": "Default",
+      "ocean": "Ocean",
+      "forest": "Forest",
+      "contrast": "High contrast"
+    },
+    "language": "Language",
+    "languageDescription": "Interface language.",
+    "locale": {
+      "en": "English",
+      "ja": "日本語"
+    },
+    "regional": "Regional",
+    "regionalDescription": "Time zone, currency, and date formatting.",
+    "timezone": "Time zone",
+    "currency": "Currency",
+    "dateFormat": "Date format"
+  }
+}

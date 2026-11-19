@@ -1,0 +1,66 @@
+---
+title: Generation workflow
+sidebar_position: 3
+---
+
+# Generation workflow
+
+## Copy
+
+```bash
+uvx copier copy --trust ./template <dest>
+```
+
+`--trust` is required because post-copy `_tasks` run shell commands. Minimum Copier: **9.4.0**.
+
+## Backend task sequence
+
+| Step | Command | When |
+|---|---|---|
+| 1 | `uv sync --all-packages --no-install-project` | backend + **copy** |
+| 2 | `uv run dx new-service {{ first_service }} --with-example` | not `polyrepo_kit` |
+| 3 | `uv run dx new-saas {{ first_service }}` | saas + **not** microservices (monolith **or** polyrepo_service) |
+| 4 | `uv run dx new-service identity --with-saas && … billing --with-saas` | monorepo + microservices + saas |
+| 5 | `uv sync --all-packages` | backend **copy and update** |
+| 6 | Ruff format + check (`\|\| true`) | copy |
+| 7 | `git init -b main`, stage, `pre-commit install` | copy |
+
+## Frontend task sequence
+
+1. `pnpm install || (npm install -g pnpm && pnpm install)`
+2. `pnpm dx check` (best effort)
+3. `git init` + stage
+
+## What gets generated (backend highlights)
+
+- `packages/platform-kit/` (unless polyrepo service — kit is a dependency)
+- `packages/contracts/` when Kafka/micro shapes need shared events
+- `services/<name>/` with Alembic, Dockerfile, example `items` module
+- `compose.yaml` with Postgres (+ Redis for SaaS, + Kafka when selected)
+- `dx` CLI entry, pre-commit, GitHub Actions, AGENTS.md / AI configs
+
+## What gets generated (frontend highlights)
+
+- `apps/web/` Vite SPA with core routes
+- `packages/ui-kit/` (`@aham/ui-kit`)
+- Example `items` feature (list + detail)
+- pnpm workspace, dx CLI, CI, AGENTS.md / AI configs
+
+## After generation checklist
+
+**Backend**
+
+```bash
+cp .env.example services/<service>/.env   # polyrepo_service: .env at repo root
+docker compose up -d
+uv run dx db upgrade <service>
+uv run dx run <service>
+```
+
+**Frontend**
+
+```bash
+cp .env.example .env
+pnpm install
+pnpm dev
+```

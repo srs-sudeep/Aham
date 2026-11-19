@@ -1,19 +1,35 @@
 # Agent guide — {{ project_name }}
 
+Read **[CONVENTIONS.md](./CONVENTIONS.md)** first (folder tree, import matrix, golden code).
+
+## Structure
+
+- Product code: `apps/web/src/modules/<module>/{module.ts,public.ts,shared,features/<feature>}`
+- Feature layout: `features/<feature>/{index.ts,api,hooks,model,views/{pages,components},routes,locales}`
+- Protected (lead-owned): `packages/ui-kit`, `apps/web/src/app`, `apps/web/src/core`
+- Reference example: `modules/catalog` (items + categories)
+
 ## Do
 
-- Put product UI in `apps/web/src/features/<name>/{api,hooks,views,routes,locales}`
+- Scaffold with `pnpm new-module <name>` / `pnpm new-feature <module>/<name>`
+- Declare features with `defineFeature`, modules with `defineModule` (auto-registered)
+- Query keys via a tenant-scoped keys factory; data access only in `hooks/` through `useApi`
+- Build pages with `ListPage` / `DetailPage` / `FormPage` + `QueryState`
 - Import UI only from `@aham/ui-kit` / `@aham/ui-kit/components`
-- Use `t()` for user-facing copy; register nav with `labelKey`
+- Use `t()` for user-facing copy (en + ja); register nav with `labelKey`
 - Declare `permission` on every non-core route
-- Change theme/locale only via kit Preferences APIs / `/settings`
+- Cross-module reuse only through the other module's `public.ts`
+- Colocate tests (`*.test.ts[x]`); use `TestProviders` from `@aham/ui-kit/testing`
+- Change theme / locale / regional formats only via kit Preferences APIs / `/settings`
+- Local data without a backend: `VITE_USE_MOCKS=1 pnpm dev` (MSW handlers in `*.handlers.ts`)
 
 ## Do not
 
-- Edit `packages/ui-kit` unless `DX_ALLOW_BASELINE=1`
-- Import raw `components/ui` paths, `axios`, or call `fetch` from views
-- Hardcode colors/font sizes (`text-[13px]`, `bg-[#…]`) in features
+- Edit `packages/ui-kit`, `app/`, `core/` unless `DX_ALLOW_BASELINE=1`
+- Import `lucide-react`, `axios`, `@radix-ui/*`, or `@aham/ui-kit/primitives` in the app
+- Call `fetch`/api client from views, or put JSX in `api/` / `hooks/`
+- Deep-import another feature or module internals
+- Hardcode colors/font sizes (`text-[13px]`, `bg-[#…]`); use kit components + layout utilities
 - Invent themes outside kit-registered presets
-- Put API calls in views or JSX in `api/` / `hooks/`
 
 Run `pnpm dx check` after edits. Commit/CI runs the **full** rule set on the whole repo.

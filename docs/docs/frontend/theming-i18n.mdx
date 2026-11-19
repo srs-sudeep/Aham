@@ -1,0 +1,30 @@
+---
+title: Theming & i18n
+sidebar_position: 5
+---
+
+# Theming & i18n
+
+## Preferences
+
+Change appearance **only** through kit Preferences APIs / the `/settings` page:
+
+- Theme mode: light / dark / system
+- Color presets (kit-registered — e.g. default / ocean / forest / contrast)
+- Density
+- Language
+
+Do not invent ad-hoc theme providers or hardcode palette values in features.
+
+`sidebarCollapsed` exists in the preferences storage API but is **not** exposed on `/settings` in the example.
+
+## Locales
+
+- Default locale chosen at Copier time (`en` or `ja`) and seeded by `VITE_DEFAULT_LOCALE` when no stored prefs exist
+- Core + feature locale files (`en` + `ja` in the example)
+- Always use `t()` for user-visible strings
+- Nav labels use `labelKey` so translations stay consistent
+
+## Persistence
+
+Preferences persist in **localStorage** under `aham.preferences.v1`. Syncing to a Preferences API is an open item (see template [HANDOFF](../template/handoff.mdx)).

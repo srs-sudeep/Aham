@@ -1,0 +1,54 @@
+---
+title: Overview
+sidebar_position: 1
+---
+
+# Frontend overview
+
+Aham frontends are **Vite + React + TypeScript** SPAs built on **`@aham/ui-kit`**. Product work lives in **features**; the kit owns shell, tokens, components, preferences, and shared API/auth helpers.
+
+## Stack
+
+| Piece | Choice |
+|---|---|
+| Bundler | Vite 6 |
+| UI | React 19 + TypeScript |
+| Routing | TanStack Router |
+| Data | TanStack Query |
+| Styling | Tailwind 4 + curated shadcn primitives via ui-kit |
+| i18n | i18next (en / ja) |
+| Packages | pnpm workspace |
+| Node | ≥ 20 |
+
+This is **not** Next.js.
+
+## Repo shape (example `frontend/web-spa`)
+
+```text
+apps/web/                 # SPA application
+  src/routes/             # fixed core routes
+  src/features/           # product features
+  src/lib/                # app wiring (api client, i18n, etc.)
+packages/ui-kit/          # protected baseline (@aham/ui-kit)
+```
+
+## Commands
+
+```bash
+cd frontend/web-spa
+pnpm install
+pnpm dev          # http://localhost:5173
+pnpm dx check
+pnpm dx new-feature <name>
+pnpm test
+pnpm build
+```
+
+## Docs in this section
+
+- [UI kit](./ui-kit.mdx)
+- [Features](./features.mdx)
+- [Routing & auth](./routing-auth.mdx)
+- [Theming & i18n](./theming-i18n.mdx)
+- [dx check](./dx-check.mdx)
+- [Connecting to the API](./connecting-api.mdx)

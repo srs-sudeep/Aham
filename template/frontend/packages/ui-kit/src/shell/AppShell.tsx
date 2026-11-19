@@ -1,17 +1,87 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthProvider";
 import { usePreferences } from "../preferences/PreferencesProvider";
-import { Button } from "../components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
-import { ScrollArea } from "../components/ui/scroll-area";
-import { Separator } from "../components/ui/separator";
+import { Button } from "../primitives/button";
+import { Sheet, SheetContent, SheetTrigger } from "../primitives/sheet";
+import { ScrollArea } from "../primitives/scroll-area";
+import { Separator } from "../primitives/separator";
 import { cn } from "../lib/utils";
-import type { NavItem } from "./types";
+import type { NavGroup, NavItem } from "./types";
+
+const FLAT_GROUP_ID = "__flat";
+
+function findActiveTo(groups: NavGroup[], currentPath: string): string | null {
+  let best: string | null = null;
+  for (const group of groups) {
+    for (const item of group.items) {
+      const matches = currentPath === item.to || currentPath.startsWith(`${item.to}/`);
+      if (matches && (best === null || item.to.length > best.length)) best = item.to;
+    }
+  }
+  return best;
+}
+
+type NavListProps = {
+  groups: NavGroup[];
+  activeTo: string | null;
+  collapsed: boolean;
+  onNavigate: (to: string) => void;
+  onItemClick?: () => void;
+};
+
+/** Defined at module level so it keeps a stable identity across AppShell renders. */
+function NavList({ groups, activeTo, collapsed, onNavigate, onItemClick }: NavListProps) {
+  const { t } = useTranslation();
+  return (
+    <nav className="flex flex-col gap-1 p-2">
+      {groups.map((group, index) => {
+        const showLabel = group.id !== FLAT_GROUP_ID && Boolean(group.labelKey);
+        return (
+          <div key={group.id} className="flex flex-col gap-1">
+            {showLabel && !collapsed ? (
+              <div className="px-3 pb-1 pt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t(group.labelKey)}
+              </div>
+            ) : null}
+            {showLabel && collapsed && index > 0 ? <Separator className="my-1" /> : null}
+            {group.items.map((item: NavItem) => {
+              const active = item.to === activeTo;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.to}
+                  type="button"
+                  aria-current={active ? "page" : undefined}
+                  title={collapsed ? t(item.labelKey) : undefined}
+                  onClick={() => {
+                    onNavigate(item.to);
+                    onItemClick?.();
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 text-left text-body transition-colors",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
+                    collapsed && "justify-center px-2",
+                  )}
+                >
+                  {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
+                  {!collapsed ? <span>{t(item.labelKey)}</span> : null}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
 
 export function AppShell({
   brand,
+  navGroups,
   nav,
   children,
   topbarExtra,
@@ -19,7 +89,10 @@ export function AppShell({
   currentPath,
 }: {
   brand: ReactNode;
-  nav: NavItem[];
+  /** Preferred: grouped navigation built via `buildNavGroups`. */
+  navGroups?: NavGroup[];
+  /** @deprecated Flat navigation, kept for compatibility. Ignored when `navGroups` is set. */
+  nav?: NavItem[];
   children: ReactNode;
   topbarExtra?: ReactNode;
   onNavigate: (to: string) => void;
@@ -29,35 +102,20 @@ export function AppShell({
   const { can, logout, principal } = useAuth();
   const { sidebarCollapsed, setSidebarCollapsed } = usePreferences();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const visible = nav.filter((item) => can(item.permission));
 
-  const NavList = ({ onClick }: { onClick?: () => void }) => (
-    <nav className="flex flex-col gap-1 p-2">
-      {visible.map((item) => {
-        const active = currentPath === item.to || currentPath.startsWith(`${item.to}/`);
-        const Icon = item.icon;
-        return (
-          <button
-            key={item.to}
-            type="button"
-            onClick={() => {
-              onNavigate(item.to);
-              onClick?.();
-            }}
-            className={cn(
-              "flex items-center gap-2 rounded-md px-3 py-2 text-left text-body transition-colors",
-              active
-                ? "bg-primary text-primary-foreground"
-                : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
-              sidebarCollapsed && "justify-center px-2",
-            )}
-          >
-            {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
-            {!sidebarCollapsed ? <span>{t(item.labelKey)}</span> : null}
-          </button>
-        );
-      })}
-    </nav>
+  const visibleGroups = useMemo<NavGroup[]>(() => {
+    const source: NavGroup[] =
+      navGroups ??
+      (nav && nav.length > 0 ? [{ id: FLAT_GROUP_ID, labelKey: "", order: 0, items: nav }] : []);
+    return [...source]
+      .sort((a, b) => a.order - b.order)
+      .map((group) => ({ ...group, items: group.items.filter((item) => can(item.permission)) }))
+      .filter((group) => group.items.length > 0);
+  }, [navGroups, nav, can]);
+
+  const activeTo = useMemo(
+    () => findActiveTo(visibleGroups, currentPath),
+    [visibleGroups, currentPath],
   );
 
   return (
@@ -81,7 +139,12 @@ export function AppShell({
         </div>
         <Separator />
         <ScrollArea className="flex-1">
-          <NavList />
+          <NavList
+            groups={visibleGroups}
+            activeTo={activeTo}
+            collapsed={sidebarCollapsed}
+            onNavigate={onNavigate}
+          />
         </ScrollArea>
       </aside>
 
@@ -95,7 +158,13 @@ export function AppShell({
             </SheetTrigger>
             <SheetContent side="left">
               <div className="mb-4 font-semibold">{brand}</div>
-              <NavList onClick={() => setMobileOpen(false)} />
+              <NavList
+                groups={visibleGroups}
+                activeTo={activeTo}
+                collapsed={false}
+                onNavigate={onNavigate}
+                onItemClick={() => setMobileOpen(false)}
+              />
             </SheetContent>
           </Sheet>
           <div className="flex-1" />

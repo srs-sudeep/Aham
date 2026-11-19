@@ -1,0 +1,45 @@
+---
+title: Features
+sidebar_position: 3
+---
+
+# Features
+
+Create features with:
+
+```bash
+pnpm dx new-feature <name>
+# example
+pnpm dx new-feature orders
+```
+
+## Required folder contract
+
+```text
+apps/web/src/features/<name>/
+  api/        # HTTP functions only — no JSX
+  hooks/      # TanStack Query hooks — no JSX
+  views/      # Presentational UI — no direct fetch/axios
+  routes/     # TanStack route trees / registrations
+  locales/    # Feature i18n namespaces (convention + scaffold)
+```
+
+## Do
+
+- Put product UI in the feature folders above
+- Import UI only from `@aham/ui-kit` / `@aham/ui-kit/components`
+- Use `t()` for user-facing copy
+- Register nav items with `labelKey`
+- Declare `permission` on every non-core route
+
+## Do not
+
+- Hardcode colors/font sizes (`text-[13px]`, `bg-[#…]`) in features
+- Invent themes outside kit-registered presets
+- Put API calls in views
+- Put JSX in `api/` or `hooks/`
+- Reinvent login/shell/settings/403/404
+
+## Example: items
+
+`frontend/web-spa` ships an `items` feature demonstrating **list + detail** (not full CRUD UI), hooks, locales, and mock fallback when `/items` fails against the API. It is the reference for new features.

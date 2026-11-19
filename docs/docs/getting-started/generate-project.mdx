@@ -1,0 +1,66 @@
+---
+title: Generate a project
+sidebar_position: 2
+---
+
+# Generate a project
+
+Aham uses **[Copier](https://copier.readthedocs.io/)** (≥ 9.4) with `--trust` so post-copy tasks can sync deps, scaffold the first service/feature, and initialize git.
+
+## Copy from this repo
+
+```bash
+cd /path/to/Aham
+uvx copier copy --trust ./template my-new-project
+```
+
+Answer the prompts:
+
+1. **stack** — `backend` or `frontend` (selects which template subdirectory to render)
+2. **project_name** / **project_slug**
+3. Backend-only: `repo_layout`, `architecture`, `messaging`, `platform_profile`, `repo_manager`, …
+4. Frontend-only: `api_base_url`, `default_locale`
+5. **ai_tools** — Claude and/or Cursor rule packs
+
+Full question matrix: [Copier options](../template/copier-options.mdx).
+
+## What happens after answers
+
+### Backend post-copy tasks
+
+On `copy` only (except the final sync, which also runs on `update`):
+
+1. `uv sync --all-packages --no-install-project`
+2. `uv run dx new-service {{ first_service }} --with-example` (skipped for `polyrepo_kit`)
+3. If `platform_profile=saas` and **not** microservices: `uv run dx new-saas {{ first_service }}`  
+   (identity + billing **modules** — applies to monolith and polyrepo_service)
+4. If monorepo + microservices + saas:  
+   `uv run dx new-service identity --with-saas && uv run dx new-service billing --with-saas`
+5. `uv sync --all-packages` (every backend copy **and** update)
+6. Ruff format/check (`|| true`)
+7. `git init -b main`, stage all, `pre-commit install`
+
+### Frontend post-copy tasks
+
+1. `pnpm install` (falls back to `npm install -g pnpm && pnpm install` if needed)
+2. `pnpm dx check` (best-effort)
+3. `git init` + stage
+
+## Skip tasks (scaffold only)
+
+Useful when regenerating docs examples:
+
+```bash
+uvx copier copy --trust --skip-tasks ./template my-scaffold
+```
+
+Then install and scaffold manually. The checked-in `frontend/web-spa` was produced this way (`--skip-tasks`, then `pnpm install`).
+
+## Update an existing generated project
+
+```bash
+cd my-new-project
+uvx copier update --trust
+```
+
+See [Updating projects](../template/updating-projects.mdx).

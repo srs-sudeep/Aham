@@ -1,8 +1,12 @@
 ---
-description: UI tokens and i18n
+description: UI tokens, i18n and formatting
 globs: apps/web/src/**/*.{tsx,ts,css}
 ---
 
-- No arbitrary colors/font sizes in features
-- No hardcoded user-facing strings in views
-- No documentElement theme hacks
+- Build UI from kit components; Tailwind in features is for layout utilities only (`flex`, `grid`, `gap-*`, `p-*`, `w-full`…)
+- Use design tokens (`bg-background`, `text-muted-foreground`, `border-border`); no arbitrary colors/font sizes (`bg-[#…]`, `text-[13px]`) (FE-UI001)
+- No fixed widths >= 300px in views (FE-RESP001)
+- No hardcoded user-facing strings in views: `t("<feature>.<key>")`, add keys to both `en.json` and `ja.json` (FE-I18N001/002)
+- Dates, numbers, money: `formatDate` / `formatDateTime` / `formatNumber` / `formatMoney` from `@aham/ui-kit`
+- No `document.documentElement` theme/locale hacks (FE-THEME001); use Preferences / `/settings`
+- Icons only from `@aham/ui-kit` (never `lucide-react`)

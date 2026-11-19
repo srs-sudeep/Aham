@@ -1,4 +1,6 @@
 {
-  "protected_paths": ["packages/ui-kit", "apps/web/src/routes"],
-  "features_dir": "apps/web/src/features"
+  "protected_paths": ["packages/ui-kit", "apps/web/src/app", "apps/web/src/core"],
+  "modules_dir": "apps/web/src/modules",
+  "max_feature_depth": 2,
+  "max_component_group_depth": 1
 }

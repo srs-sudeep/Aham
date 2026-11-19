@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -21,9 +23,15 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm lint
       - name: Full-repo dx check
         run: pnpm dx check --format github
       - run: pnpm test
       - run: pnpm build
+      - name: Bundle budget
+        run: |
+          SIZE=$(wc -c < apps/web/dist/assets/*.js | awk '{s+=$1} END {print s}')
+          echo "JS bytes: $SIZE"
+          test "$SIZE" -lt 900000
