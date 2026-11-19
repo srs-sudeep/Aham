@@ -1,0 +1,101 @@
+"""Business rules for items: the only layer that decides what is allowed."""
+
+from __future__ import annotations
+
+import uuid
+from typing import TYPE_CHECKING, Protocol
+
+from .errors import ItemCategoryNotFoundError, ItemNameTakenError, ItemNotFoundError, ItemSkuTakenError
+from .models import Item
+from .repository import ItemRepository
+from .schemas import ItemCreate, ItemPage, ItemRead, ItemUpdate
+
+if TYPE_CHECKING:
+    pass
+
+
+class _CategoryLookup(Protocol):
+    async def get(self, tenant_id: uuid.UUID, category_id: uuid.UUID) -> object: ...
+
+
+class ItemService:
+    def __init__(self, repo: ItemRepository, categories: _CategoryLookup | None = None) -> None:
+        self.repo = repo
+        self.categories = categories
+
+    async def create(self, tenant_id: uuid.UUID, data: ItemCreate) -> ItemRead:
+        await self._assert_unique(tenant_id, name=data.name, sku=data.sku)
+        await self._assert_category(tenant_id, data.category_id)
+        created = await self.repo.add(Item(tenant_id=tenant_id, **data.model_dump()))
+        await self.repo.commit()
+        return ItemRead.model_validate(created)
+
+    async def get(self, tenant_id: uuid.UUID, item_id: uuid.UUID) -> ItemRead:
+        return ItemRead.model_validate(await self._require(tenant_id, item_id))
+
+    async def list(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        q: str | None = None,
+        status: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> ItemPage:
+        rows, total = await self.repo.search(tenant_id, q=q, status=status, page=page, page_size=page_size)
+        return ItemPage(items=[ItemRead.model_validate(row) for row in rows], total=total)
+
+    async def update(self, tenant_id: uuid.UUID, item_id: uuid.UUID, data: ItemUpdate) -> ItemRead:
+        item = await self._require(tenant_id, item_id)
+        changes = data.model_dump(exclude_unset=True)
+        await self._assert_unique(
+            tenant_id,
+            name=changes.get("name"),
+            sku=changes.get("sku"),
+            excluding=item.id,
+        )
+        if "category_id" in changes:
+            await self._assert_category(tenant_id, changes["category_id"])
+        for field, value in changes.items():
+            setattr(item, field, value)
+        await self.repo.commit()
+        return ItemRead.model_validate(item)
+
+    async def delete(self, tenant_id: uuid.UUID, item_id: uuid.UUID) -> None:
+        await self.repo.delete(await self._require(tenant_id, item_id))
+        await self.repo.commit()
+
+    async def _require(self, tenant_id: uuid.UUID, item_id: uuid.UUID) -> Item:
+        found = await self.repo.get_in_tenant(tenant_id, item_id)
+        if found is None:
+            raise ItemNotFoundError(detail=f"item_id={item_id}")
+        return found
+
+    async def _assert_unique(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        name: str | None = None,
+        sku: str | None = None,
+        excluding: uuid.UUID | None = None,
+    ) -> None:
+        if name is not None:
+            existing = await self.repo.get_by_name(tenant_id, name)
+            if existing is not None and existing.id != excluding:
+                raise ItemNameTakenError(detail=f"name={name!r} is already taken")
+        if sku is not None:
+            existing = await self.repo.get_by_sku(tenant_id, sku)
+            if existing is not None and existing.id != excluding:
+                raise ItemSkuTakenError(detail=f"sku={sku!r} is already taken")
+
+    async def _assert_category(self, tenant_id: uuid.UUID, category_id: uuid.UUID | None) -> None:
+        if category_id is None:
+            return
+        if self.categories is None:
+            raise ItemCategoryNotFoundError(detail="category lookup is not configured")
+        from $package.modules.categories.errors import CategoryNotFoundError
+
+        try:
+            await self.categories.get(tenant_id, category_id)
+        except CategoryNotFoundError as exc:
+            raise ItemCategoryNotFoundError(detail=f"category_id={category_id}") from exc

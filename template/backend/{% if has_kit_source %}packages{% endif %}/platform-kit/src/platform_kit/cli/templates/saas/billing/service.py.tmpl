@@ -22,6 +22,7 @@ from platform_kit.providers import ManualPaymentProvider, PaymentProvider
 from platform_kit.redis import RedisClient
 
 DEFAULT_CATALOG: list[tuple[str, str, str, str | None]] = [
+    ("catalog", "Product catalog (items + categories)", "boolean", None),
     ("sso", "Enterprise SSO", "boolean", None),
     ("audit_export", "Audit log export", "boolean", None),
     ("api_calls", "API calls per month", "quota", "calls"),
@@ -29,9 +30,9 @@ DEFAULT_CATALOG: list[tuple[str, str, str, str | None]] = [
 ]
 
 DEFAULT_PLANS: dict[str, dict[str, bool | int]] = {
-    "free": {"audit_export": False, "sso": False, "api_calls": 1000, "seats": 3},
-    "pro": {"audit_export": True, "sso": False, "api_calls": 100_000, "seats": 25},
-    "enterprise": {"audit_export": True, "sso": True, "api_calls": -1, "seats": -1},
+    "free": {"catalog": True, "audit_export": False, "sso": False, "api_calls": 1000, "seats": 3},
+    "pro": {"catalog": True, "audit_export": True, "sso": False, "api_calls": 100_000, "seats": 25},
+    "enterprise": {"catalog": True, "audit_export": True, "sso": True, "api_calls": -1, "seats": -1},
 }
 
 

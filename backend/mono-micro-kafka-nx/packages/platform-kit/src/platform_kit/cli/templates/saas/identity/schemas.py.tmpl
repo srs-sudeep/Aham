@@ -148,3 +148,43 @@ class AuditEventOut(BaseModel):
     result: str
     created_at: datetime
     request_id: str | None
+
+
+class TenantUserOut(BaseModel):
+    user_id: UUID
+    email: str
+    status: str
+    membership_status: str
+    role_id: UUID
+    role: str
+
+
+class UpdateTenantUserRequest(BaseModel):
+    role: str | None = None
+    membership_status: str | None = Field(default=None, pattern=r"^(active|disabled)$$")
+
+
+class RoleOut(BaseModel):
+    id: UUID
+    name: str
+    is_system: bool
+    tenant_id: UUID | None
+    permissions: list[str]
+
+
+class CreateRoleRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=80, pattern=r"^[a-z][a-z0-9_]*$$")
+    permissions: list[str] = Field(default_factory=list)
+
+
+class UpdateRoleRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=80, pattern=r"^[a-z][a-z0-9_]*$$")
+
+
+class SetRolePermissionsRequest(BaseModel):
+    permissions: list[str]
+
+
+class PermissionOut(BaseModel):
+    code: str
+    description: str | None

@@ -3,10 +3,13 @@
 import uuid
 from typing import Annotated
 
-from fastapi import Query
+from fastapi import Depends, Query
+from pydantic import BaseModel, Field
 
 from core_api.permissions import Resource
 from platform_kit import Action, Permission, SecureRouter
+from platform_kit.entitlements import require_feature
+from platform_kit.tenancy import TenantIdDep
 
 from .dependencies import ItemServiceDep
 from .schemas import ItemCreate, ItemPage, ItemRead, ItemUpdate
@@ -14,14 +17,22 @@ from .schemas import ItemCreate, ItemPage, ItemRead, ItemUpdate
 router = SecureRouter(prefix="/items", tags=["items"])
 
 
+class ItemListQuery(BaseModel):
+    q: str | None = None
+    status: str | None = None
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, alias="pageSize", ge=1, le=100)
+
+
 @router.post(
     "",
     permission=Permission(Resource.ITEM, Action.CREATE),
     summary="Create item",
     status_code=201,
+    dependencies=[Depends(require_feature("catalog"))],
 )
-async def create_item(body: ItemCreate, svc: ItemServiceDep) -> ItemRead:
-    return await svc.create(body)
+async def create_item(body: ItemCreate, svc: ItemServiceDep, tenant_id: TenantIdDep) -> ItemRead:
+    return await svc.create(tenant_id, body)
 
 
 @router.get(
@@ -31,10 +42,16 @@ async def create_item(body: ItemCreate, svc: ItemServiceDep) -> ItemRead:
 )
 async def list_items(
     svc: ItemServiceDep,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    tenant_id: TenantIdDep,
+    query: Annotated[ItemListQuery, Query()],
 ) -> ItemPage:
-    return await svc.list(offset=offset, limit=limit)
+    return await svc.list(
+        tenant_id,
+        q=query.q,
+        status=query.status,
+        page=query.page,
+        page_size=query.page_size,
+    )
 
 
 @router.get(
@@ -42,17 +59,18 @@ async def list_items(
     permission=Permission(Resource.ITEM, Action.READ),
     summary="Get item",
 )
-async def get_item(item_id: uuid.UUID, svc: ItemServiceDep) -> ItemRead:
-    return await svc.get(item_id)
+async def get_item(item_id: uuid.UUID, svc: ItemServiceDep, tenant_id: TenantIdDep) -> ItemRead:
+    return await svc.get(tenant_id, item_id)
 
 
-@router.patch(
+@router.put(
     "/{item_id}",
     permission=Permission(Resource.ITEM, Action.UPDATE),
     summary="Update item",
+    dependencies=[Depends(require_feature("catalog"))],
 )
-async def update_item(item_id: uuid.UUID, body: ItemUpdate, svc: ItemServiceDep) -> ItemRead:
-    return await svc.update(item_id, body)
+async def update_item(item_id: uuid.UUID, body: ItemUpdate, svc: ItemServiceDep, tenant_id: TenantIdDep) -> ItemRead:
+    return await svc.update(tenant_id, item_id, body)
 
 
 @router.delete(
@@ -60,6 +78,7 @@ async def update_item(item_id: uuid.UUID, body: ItemUpdate, svc: ItemServiceDep)
     permission=Permission(Resource.ITEM, Action.DELETE),
     summary="Delete item",
     status_code=204,
+    dependencies=[Depends(require_feature("catalog"))],
 )
-async def delete_item(item_id: uuid.UUID, svc: ItemServiceDep) -> None:
-    await svc.delete(item_id)
+async def delete_item(item_id: uuid.UUID, svc: ItemServiceDep, tenant_id: TenantIdDep) -> None:
+    await svc.delete(tenant_id, item_id)

@@ -85,6 +85,7 @@ def create_app(  # noqa: PLR0915  # composition root: one flat list of wiring st
         nonlocal messaging, redis
         app.state.http = httpx.AsyncClient(timeout=settings.http_timeout_seconds)
         if settings.redis_url:
+            from platform_kit.entitlements import RedisEntitlementStore
             from platform_kit.redis import RedisClient
             from platform_kit.security import TokenIssuer
 
@@ -92,10 +93,14 @@ def create_app(  # noqa: PLR0915  # composition root: one flat list of wiring st
             await redis.connect()
             app.state.redis = redis
             app.state.token_issuer = TokenIssuer(settings, redis)
+            # Billing replaces this with a store that has a DB loader; until then
+            # snapshots can still be written directly (tests / ManualProvider activate).
+            app.state.entitlements = RedisEntitlementStore(redis)
             app.state.health_checks["redis"] = redis.ping
         else:
             app.state.redis = None
             app.state.token_issuer = None
+            app.state.entitlements = None
         if settings.kafka_enabled:  # importing registers the outbox table before create_all
             from platform_kit.messaging import Messaging
 

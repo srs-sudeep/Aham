@@ -15,9 +15,15 @@ from $package.modules.identity.errors import (
     EmailTakenError,
     InvalidCredentialsError,
     InvitationInvalidError,
+    LastAdminError,
     MembershipNotFoundError,
+    RoleInUseError,
+    RoleNameTakenError,
+    RoleNotFoundError,
     SlugTakenError,
+    SystemRoleImmutableError,
     TenantRequiredError,
+    UnknownPermissionError,
     UserDisabledError,
 )
 from $package.modules.identity.models import (
@@ -33,12 +39,19 @@ from $package.modules.identity.repository import IdentityRepository
 from $package.modules.identity.schemas import (
     AcceptInviteRequest,
     AuditEventOut,
+    CreateRoleRequest,
     InviteRequest,
     LoginRequest,
+    PermissionOut,
     RegisterRequest,
+    RoleOut,
+    SetRolePermissionsRequest,
     TenantMembership,
     TenantSelectionResponse,
+    TenantUserOut,
     TokenResponse,
+    UpdateRoleRequest,
+    UpdateTenantUserRequest,
 )
 from platform_kit.audit import Audit, AuditEvent
 from platform_kit.config import ServiceSettings
@@ -48,14 +61,6 @@ from platform_kit.redis import RedisClient
 from platform_kit.security import TokenIssuer, TokenPair
 
 _ph = PasswordHasher()
-SYSTEM_PERMISSIONS = [
-    ("*", "Superuser (admin)"),
-    ("identity.user:invite", "Invite users"),
-    ("identity.user:disable", "Disable users"),
-    ("identity.audit:read", "Read audit log"),
-    ("billing.subscription:manage", "Manage subscriptions"),
-    ("billing.plan:read", "Read plans"),
-]
 
 
 class IdentityService(Phase2Mixin):
@@ -68,6 +73,7 @@ class IdentityService(Phase2Mixin):
         redis: RedisClient,
         audit: Audit | None = None,
         email: EmailSender | None = None,
+        permission_resolver: object | None = None,
     ) -> None:
         self.repo = repo
         self.settings = settings
@@ -75,31 +81,50 @@ class IdentityService(Phase2Mixin):
         self.redis = redis
         self.audit = audit or Audit()
         self.email = email or LoggingEmailSender()
+        self.permission_resolver = permission_resolver
 
     async def seed_system(self) -> None:
-        """Idempotent seed of system roles/permissions (admin, member, viewer)."""
-        from $package.modules.identity.models import Permission, RolePermission
+        """Idempotent seed of system roles/permissions from ROLE_PERMISSIONS."""
+        from $package.modules.identity.models import RolePermission
+        from $package.permissions import ROLE_PERMISSIONS
 
+        await self._ensure_permission_catalog(ROLE_PERMISSIONS)
         existing = await self.repo.get_system_role("admin")
         if existing:
             return
-        perm_ids: dict[str, UUID] = {}
-        for code, desc in SYSTEM_PERMISSIONS:
-            p = Permission(code=code, description=desc)
-            self.repo.session.add(p)
-            await self.repo.session.flush()
-            perm_ids[code] = p.id
-        for name, codes in (
-            ("admin", ["*"]),
-            ("member", ["identity.user:invite", "billing.plan:read"]),
-            ("viewer", ["billing.plan:read", "identity.audit:read"]),
-        ):
+        perm_ids = {p.code: p.id for p in await self.repo.list_permissions()}
+        for name, codes in ROLE_PERMISSIONS.items():
             role = Role(name=name, tenant_id=None, is_system=True)
             self.repo.session.add(role)
             await self.repo.session.flush()
             for code in codes:
                 self.repo.session.add(RolePermission(role_id=role.id, permission_id=perm_ids[code]))
         await self.repo.commit()
+
+    async def _ensure_permission_catalog(self, role_permissions: dict[str, list[str]]) -> None:
+        """Upsert ROLE_PERMISSIONS codes plus every Resource x Action into the permissions table."""
+        from $package.modules.identity.models import Permission
+        from $package.permissions import Resource
+        from platform_kit import Action
+
+        existing = {p.code: p for p in await self.repo.list_permissions()}
+        codes = {"*"}
+        for grants in role_permissions.values():
+            codes.update(grants)
+        for resource in Resource:
+            if resource.name.startswith("_"):
+                continue
+            for action in Action:
+                codes.add(f"{resource.value}:{action.value}")
+        added = False
+        for code in sorted(codes):
+            if code in existing:
+                continue
+            self.repo.session.add(Permission(code=code, description=code if code != "*" else "Superuser"))
+            added = True
+        if added:
+            await self.repo.session.flush()
+            await self.repo.commit()
 
     async def register(self, body: RegisterRequest, *, ip: str | None = None) -> TokenResponse:
         if await self.repo.get_user_by_email(body.email):
@@ -208,10 +233,18 @@ class IdentityService(Phase2Mixin):
             await self.audit.record("auth.logout", actor_id=user_id)
 
     async def invite(self, tenant_id: UUID, actor_id: UUID, body: InviteRequest, *, ip: str | None = None) -> str:
-        role = await self.repo.get_system_role(body.role) or await self.repo.get_system_role("member")
+        role = (
+            await self.repo.get_role_by_name(tenant_id, body.role)
+            or await self.repo.get_system_role(body.role)
+            or await self.repo.get_system_role("member")
+        )
         if role is None:
             await self.seed_system()
-            role = await self.repo.get_system_role(body.role) or await self.repo.get_system_role("member")
+            role = (
+                await self.repo.get_role_by_name(tenant_id, body.role)
+                or await self.repo.get_system_role(body.role)
+                or await self.repo.get_system_role("member")
+            )
         role = expect(role, "role")
         raw = secrets.token_urlsafe(32)
         inv = Invitation(
@@ -348,6 +381,166 @@ class IdentityService(Phase2Mixin):
         if "*" in codes:
             return ["*"]
         return codes
+
+    async def _invalidate_role_cache(self, role_name: str) -> None:
+        resolver = self.permission_resolver
+        if resolver is not None and hasattr(resolver, "invalidate"):
+            await resolver.invalidate(role_name)  # type: ignore[misc]
+
+    async def list_tenant_users(self, tenant_id: UUID) -> list[TenantUserOut]:
+        rows = await self.repo.list_tenant_users(tenant_id)
+        return [
+            TenantUserOut(
+                user_id=user.id,
+                email=user.email,
+                status=user.status,
+                membership_status=membership.status,
+                role_id=role.id,
+                role=role.name,
+            )
+            for membership, user, role in rows
+        ]
+
+    async def get_tenant_user(self, tenant_id: UUID, user_id: UUID) -> TenantUserOut:
+        row = await self.repo.get_tenant_membership(tenant_id, user_id)
+        if row is None:
+            raise MembershipNotFoundError(detail=f"user_id={user_id}")
+        membership, user, role = row
+        return TenantUserOut(
+            user_id=user.id,
+            email=user.email,
+            status=user.status,
+            membership_status=membership.status,
+            role_id=role.id,
+            role=role.name,
+        )
+
+    async def update_tenant_user(self, tenant_id: UUID, user_id: UUID, body: UpdateTenantUserRequest) -> TenantUserOut:
+        row = await self.repo.get_tenant_membership(tenant_id, user_id)
+        if row is None:
+            raise MembershipNotFoundError(detail=f"user_id={user_id}")
+        membership, _user, role = row
+        if body.role is not None and body.role != role.name:
+            new_role = await self.repo.get_system_role(body.role) or await self.repo.get_role_by_name(
+                tenant_id, body.role
+            )
+            if new_role is None:
+                raise RoleNotFoundError(detail=f"role={body.role}")
+            if (
+                role.name == "admin"
+                and new_role.name != "admin"
+                and await self.repo.count_admin_memberships(tenant_id) <= 1
+            ):
+                raise LastAdminError()
+            membership.role_id = new_role.id
+            role = new_role
+        if body.membership_status is not None:
+            if (
+                membership.status == "active"
+                and body.membership_status != "active"
+                and role.name == "admin"
+                and await self.repo.count_admin_memberships(tenant_id) <= 1
+            ):
+                raise LastAdminError()
+            membership.status = body.membership_status
+        await self.repo.commit()
+        return await self.get_tenant_user(tenant_id, user_id)
+
+    async def list_roles(self, tenant_id: UUID) -> list[RoleOut]:
+        roles = await self.repo.list_roles_for_tenant(tenant_id)
+        out: list[RoleOut] = []
+        for role in roles:
+            out.append(  # noqa: PERF401 — await inside loop
+                RoleOut(
+                    id=role.id,
+                    name=role.name,
+                    is_system=role.is_system,
+                    tenant_id=role.tenant_id,
+                    permissions=await self.repo.permissions_for_role(role.id),
+                )
+            )
+        return out
+
+    async def get_role(self, tenant_id: UUID, role_id: UUID) -> RoleOut:
+        role = await self._require_visible_role(tenant_id, role_id)
+        return RoleOut(
+            id=role.id,
+            name=role.name,
+            is_system=role.is_system,
+            tenant_id=role.tenant_id,
+            permissions=await self.repo.permissions_for_role(role.id),
+        )
+
+    async def create_role(self, tenant_id: UUID, body: CreateRoleRequest) -> RoleOut:
+        if await self.repo.get_system_role(body.name) or await self.repo.get_role_by_name(tenant_id, body.name):
+            raise RoleNameTakenError(detail=f"name={body.name}")
+        role = Role(name=body.name, tenant_id=tenant_id, is_system=False)
+        self.repo.session.add(role)
+        await self.repo.session.flush()
+        await self._set_role_permission_codes(role, body.permissions)
+        await self.repo.commit()
+        await self._invalidate_role_cache(role.name)
+        return await self.get_role(tenant_id, role.id)
+
+    async def update_role(self, tenant_id: UUID, role_id: UUID, body: UpdateRoleRequest) -> RoleOut:
+        role = await self._require_tenant_role(tenant_id, role_id)
+        if role.is_system:
+            raise SystemRoleImmutableError()
+        if body.name is not None and body.name != role.name:
+            if await self.repo.get_system_role(body.name) or await self.repo.get_role_by_name(tenant_id, body.name):
+                raise RoleNameTakenError(detail=f"name={body.name}")
+            old = role.name
+            role.name = body.name
+            await self.repo.commit()
+            await self._invalidate_role_cache(old)
+            await self._invalidate_role_cache(role.name)
+        return await self.get_role(tenant_id, role.id)
+
+    async def delete_role(self, tenant_id: UUID, role_id: UUID) -> None:
+        role = await self._require_tenant_role(tenant_id, role_id)
+        if role.is_system:
+            raise SystemRoleImmutableError()
+        if await self.repo.count_role_memberships(role.id):
+            raise RoleInUseError(detail=f"role_id={role_id}")
+        name = role.name
+        await self.repo.session.delete(role)
+        await self.repo.commit()
+        await self._invalidate_role_cache(name)
+
+    async def set_role_permissions(self, tenant_id: UUID, role_id: UUID, body: SetRolePermissionsRequest) -> RoleOut:
+        # System roles are shared across tenants — customize by creating a tenant role.
+        role = await self._require_tenant_role(tenant_id, role_id)
+        await self._set_role_permission_codes(role, body.permissions)
+        await self.repo.commit()
+        await self._invalidate_role_cache(role.name)
+        return await self.get_role(tenant_id, role.id)
+
+    async def list_permission_catalog(self) -> list[PermissionOut]:
+        from $package.permissions import ROLE_PERMISSIONS
+
+        await self._ensure_permission_catalog(ROLE_PERMISSIONS)
+        return [PermissionOut(code=p.code, description=p.description) for p in await self.repo.list_permissions()]
+
+    async def _set_role_permission_codes(self, role: Role, codes: list[str]) -> None:
+        permission_ids: list[UUID] = []
+        for code in codes:
+            perm = await self.repo.get_permission_by_code(code)
+            if perm is None:
+                raise UnknownPermissionError(detail=f"unknown permission {code}")
+            permission_ids.append(perm.id)
+        await self.repo.replace_role_permissions(role.id, permission_ids)
+
+    async def _require_visible_role(self, tenant_id: UUID, role_id: UUID) -> Role:
+        role = await self.repo.get_role(role_id)
+        if role is None or (role.tenant_id is not None and role.tenant_id != tenant_id):
+            raise RoleNotFoundError(detail=f"role_id={role_id}")
+        return role
+
+    async def _require_tenant_role(self, tenant_id: UUID, role_id: UUID) -> Role:
+        role = await self._require_visible_role(tenant_id, role_id)
+        if role.tenant_id != tenant_id:
+            raise SystemRoleImmutableError()
+        return role
 
 
 def _pair_to_response(pair: TokenPair) -> TokenResponse:

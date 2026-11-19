@@ -1,0 +1,78 @@
+"""Unit tests: the service with an in-memory fake repository. No DB, no HTTP."""
+
+import uuid
+from datetime import UTC, datetime
+
+import pytest
+from $package.modules.items.errors import ItemNameTakenError, ItemNotFoundError
+from $package.modules.items.models import Item
+from $package.modules.items.schemas import ItemCreate
+from $package.modules.items.service import ItemService
+
+
+class FakeItemRepository:
+    def __init__(self) -> None:
+        self.rows: dict[uuid.UUID, Item] = {}
+        self.commits = 0
+
+    async def add(self, obj: Item) -> Item:
+        obj.id = obj.id or uuid.uuid4()
+        obj.created_at = obj.updated_at = datetime.now(UTC)
+        self.rows[obj.id] = obj
+        return obj
+
+    async def get_in_tenant(self, tenant_id: uuid.UUID, item_id: uuid.UUID) -> Item | None:
+        row = self.rows.get(item_id)
+        return row if row is not None and row.tenant_id == tenant_id else None
+
+    async def get_by_name(self, tenant_id: uuid.UUID, name: str) -> Item | None:
+        return next((r for r in self.rows.values() if r.tenant_id == tenant_id and r.name == name), None)
+
+    async def get_by_sku(self, tenant_id: uuid.UUID, sku: str) -> Item | None:
+        return next((r for r in self.rows.values() if r.tenant_id == tenant_id and r.sku == sku), None)
+
+    async def search(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        q: str | None = None,
+        status: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[Item], int]:
+        rows = [r for r in self.rows.values() if r.tenant_id == tenant_id]
+        return rows, len(rows)
+
+    async def delete(self, obj: Item) -> None:
+        self.rows.pop(obj.id, None)
+
+    async def commit(self) -> None:
+        self.commits += 1
+
+
+@pytest.fixture
+def service() -> ItemService:
+    return ItemService(FakeItemRepository())  # type: ignore[arg-type]
+
+
+@pytest.fixture
+def tenant_id() -> uuid.UUID:
+    return uuid.uuid4()
+
+
+async def test_create_commits_once(service: ItemService, tenant_id: uuid.UUID) -> None:
+    created = await service.create(tenant_id, ItemCreate(name="a", sku="A-1"))
+    assert created.name == "a"
+    assert created.tenant_id == tenant_id
+    assert service.repo.commits == 1  # type: ignore[attr-defined]
+
+
+async def test_create_rejects_duplicates(service: ItemService, tenant_id: uuid.UUID) -> None:
+    await service.create(tenant_id, ItemCreate(name="a", sku="A-1"))
+    with pytest.raises(ItemNameTakenError):
+        await service.create(tenant_id, ItemCreate(name="a", sku="A-2"))
+
+
+async def test_get_missing_raises_not_found(service: ItemService, tenant_id: uuid.UUID) -> None:
+    with pytest.raises(ItemNotFoundError):
+        await service.get(tenant_id, uuid.uuid4())

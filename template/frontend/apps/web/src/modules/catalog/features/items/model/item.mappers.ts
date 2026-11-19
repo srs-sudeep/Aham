@@ -2,7 +2,7 @@ import type { ApiErrorFields } from "@aham/ui-kit";
 import { DEFAULT_CURRENCY, type ItemStatus } from "./item.constants";
 import type { Item, ItemFormValues, ItemInput, ItemPage } from "./item.schema";
 
-/** Wire format (snake_case) returned by the API. */
+/** Wire format (snake_case) returned by platform-kit `/api/v1/items`. */
 export type ItemDto = {
   id: string;
   name: string;
@@ -12,6 +12,7 @@ export type ItemDto = {
   price?: number | null;
   currency?: string | null;
   description?: string | null;
+  tenant_id?: string;
 };
 
 export type ItemListDto = {

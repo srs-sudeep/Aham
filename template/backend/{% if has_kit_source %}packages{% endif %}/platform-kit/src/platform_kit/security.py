@@ -78,9 +78,14 @@ class TokenVerifier:
             raise UnauthorizedError(detail=f"invalid token: {exc}") from exc
 
         roles = _claim_str_list(claims.get("roles"), "roles")
-        perms = set(_claim_str_list(claims.get("permissions"), "permissions"))
-        for role in roles:
-            perms.update(self.role_permissions.get(role, []))
+        # Prefer permissions embedded at issue time (DB-backed SaaS roles). Fall back to the
+        # static ROLE_PERMISSIONS matrix for external IdP tokens that only carry role names.
+        if "permissions" in claims:
+            perms = set(_claim_str_list(claims.get("permissions"), "permissions"))
+        else:
+            perms = set()
+            for role in roles:
+                perms.update(self.role_permissions.get(role, []))
         tid = claims.get("tid")
         kind = claims.get("kind", "user")
         if kind not in ("user", "api_key"):

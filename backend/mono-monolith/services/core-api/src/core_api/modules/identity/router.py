@@ -14,6 +14,7 @@ from core_api.modules.identity.schemas import (
     AuditEventOut,
     CreateApiKeyRequest,
     CreateApiKeyResponse,
+    CreateRoleRequest,
     DisableUserRequest,
     InviteRequest,
     LoginRequest,
@@ -21,17 +22,23 @@ from core_api.modules.identity.schemas import (
     MfaConfirmRequest,
     MfaEnrollResponse,
     MfaRequiredResponse,
+    PermissionOut,
     RefreshRequest,
     RegisterRequest,
+    RoleOut,
     ScimTokenResponse,
     SelectTenantRequest,
+    SetRolePermissionsRequest,
     SsoLoginResult,
     SsoStartRequest,
     SsoStartResponse,
     SwitchTenantRequest,
     TenantMembership,
     TenantSelectionResponse,
+    TenantUserOut,
     TokenResponse,
+    UpdateRoleRequest,
+    UpdateTenantUserRequest,
     UpsertOidcConnectionRequest,
 )
 from core_api.modules.identity.scim_router import router as scim_router
@@ -45,6 +52,7 @@ from platform_kit.security import (
     deliver_refresh_token,
     read_refresh_token,
 )
+from platform_kit.tenancy import TenantIdDep
 
 router = SecureRouter(prefix="/auth", tags=["auth"])
 extra_routers = [scim_router]
@@ -268,3 +276,101 @@ async def revoke_api_key(key_id: UUID, svc: IdentityServiceDep, principal: Curre
 )
 async def issue_scim_token(svc: IdentityServiceDep, principal: CurrentPrincipal) -> ScimTokenResponse:
     return await svc.issue_scim_token(UUID(principal.tid))
+
+
+@router.get(
+    "/users",
+    permission=Permission(Resource.IDENTITY_USER, Action.LIST),
+    summary="List users in the current tenant",
+)
+async def list_users(svc: IdentityServiceDep, tenant_id: TenantIdDep) -> list[TenantUserOut]:
+    return await svc.list_tenant_users(tenant_id)
+
+
+@router.get(
+    "/users/{user_id}",
+    permission=Permission(Resource.IDENTITY_USER, Action.READ),
+    summary="Get a tenant membership",
+)
+async def get_user(user_id: UUID, svc: IdentityServiceDep, tenant_id: TenantIdDep) -> TenantUserOut:
+    return await svc.get_tenant_user(tenant_id, user_id)
+
+
+@router.patch(
+    "/users/{user_id}",
+    permission=Permission(Resource.IDENTITY_USER, Action.UPDATE),
+    summary="Update a member's role or membership status",
+)
+async def update_user(
+    user_id: UUID, body: UpdateTenantUserRequest, svc: IdentityServiceDep, tenant_id: TenantIdDep
+) -> TenantUserOut:
+    return await svc.update_tenant_user(tenant_id, user_id, body)
+
+
+@router.get(
+    "/roles",
+    permission=Permission(Resource.IDENTITY_ROLE, Action.LIST),
+    summary="List system and tenant roles",
+)
+async def list_roles(svc: IdentityServiceDep, tenant_id: TenantIdDep) -> list[RoleOut]:
+    return await svc.list_roles(tenant_id)
+
+
+@router.post(
+    "/roles",
+    permission=Permission(Resource.IDENTITY_ROLE, Action.CREATE),
+    summary="Create a tenant-custom role",
+    status_code=201,
+)
+async def create_role(body: CreateRoleRequest, svc: IdentityServiceDep, tenant_id: TenantIdDep) -> RoleOut:
+    return await svc.create_role(tenant_id, body)
+
+
+@router.get(
+    "/roles/{role_id}",
+    permission=Permission(Resource.IDENTITY_ROLE, Action.READ),
+    summary="Get a role and its permissions",
+)
+async def get_role(role_id: UUID, svc: IdentityServiceDep, tenant_id: TenantIdDep) -> RoleOut:
+    return await svc.get_role(tenant_id, role_id)
+
+
+@router.patch(
+    "/roles/{role_id}",
+    permission=Permission(Resource.IDENTITY_ROLE, Action.UPDATE),
+    summary="Rename a tenant-custom role",
+)
+async def update_role(
+    role_id: UUID, body: UpdateRoleRequest, svc: IdentityServiceDep, tenant_id: TenantIdDep
+) -> RoleOut:
+    return await svc.update_role(tenant_id, role_id, body)
+
+
+@router.delete(
+    "/roles/{role_id}",
+    permission=Permission(Resource.IDENTITY_ROLE, Action.DELETE),
+    summary="Delete a tenant-custom role",
+    status_code=204,
+)
+async def delete_role(role_id: UUID, svc: IdentityServiceDep, tenant_id: TenantIdDep) -> None:
+    await svc.delete_role(tenant_id, role_id)
+
+
+@router.put(
+    "/roles/{role_id}/permissions",
+    permission=Permission(Resource.IDENTITY_ROLE, Action.UPDATE),
+    summary="Replace grants on a tenant-custom role",
+)
+async def set_role_permissions(
+    role_id: UUID, body: SetRolePermissionsRequest, svc: IdentityServiceDep, tenant_id: TenantIdDep
+) -> RoleOut:
+    return await svc.set_role_permissions(tenant_id, role_id, body)
+
+
+@router.get(
+    "/permissions",
+    permission=Permission(Resource.IDENTITY_PERMISSION, Action.LIST),
+    summary="List the permission catalog",
+)
+async def list_permissions(svc: IdentityServiceDep) -> list[PermissionOut]:
+    return await svc.list_permission_catalog()

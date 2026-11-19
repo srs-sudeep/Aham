@@ -8,8 +8,10 @@ from fastapi import Depends, Request
 
 from core_api.modules.identity.repository import IdentityRepository
 from core_api.modules.identity.service import IdentityService
+from core_api.permissions import ROLE_PERMISSIONS
 from platform_kit.audit import Audit
 from platform_kit.db import SessionDep
+from platform_kit.permission_resolver import PermissionResolver
 from platform_kit.providers import LoggingEmailSender
 from platform_kit.redis import RedisClient
 from platform_kit.security import TokenIssuer
@@ -23,13 +25,21 @@ def get_identity_service(session: SessionDep, request: Request) -> IdentityServi
         raise RuntimeError("SaaS identity requires Redis and TokenIssuer (PLATFORM_PROFILE=saas, REDIS_URL)")
     audit_writer = getattr(request.app.state, "audit_writer", None)
     audit = Audit(audit_writer) if audit_writer else Audit()
+    repo = IdentityRepository(session)
+
+    async def db_loader(role_name: str) -> list[str]:
+        return await repo.permissions_for_role_name(role_name)
+
+    resolver = PermissionResolver(code_fallback=ROLE_PERMISSIONS, redis=redis, db_loader=db_loader)
+    request.app.state.permission_resolver = resolver
     svc = IdentityService(
-        IdentityRepository(session),
+        repo,
         settings=settings,
         issuer=issuer,
         redis=redis,
         audit=audit,
         email=LoggingEmailSender(),
+        permission_resolver=resolver,
     )
 
     async def _api_key_lookup(raw: str):

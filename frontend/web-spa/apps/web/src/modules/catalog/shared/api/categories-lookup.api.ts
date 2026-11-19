@@ -2,10 +2,12 @@ import type { ApiClient } from "@aham/ui-kit";
 import type { Category, CategoryOption } from "../model/category.types";
 import { toQueryString } from "./query-string";
 
+/** Wire format for platform-kit `/api/v1/categories`. */
 export type CategoryDto = {
   id: string;
   name: string;
   description?: string | null;
+  tenant_id?: string;
 };
 
 export type CategoryListDto = {

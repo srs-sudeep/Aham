@@ -21,14 +21,27 @@ class FakeItemRepository:
         self.rows[obj.id] = obj
         return obj
 
-    async def get(self, id_: uuid.UUID) -> Item | None:
-        return self.rows.get(id_)
+    async def get_in_tenant(self, tenant_id: uuid.UUID, item_id: uuid.UUID) -> Item | None:
+        row = self.rows.get(item_id)
+        return row if row is not None and row.tenant_id == tenant_id else None
 
-    async def get_by_name(self, name: str) -> Item | None:
-        return next((r for r in self.rows.values() if r.name == name), None)
+    async def get_by_name(self, tenant_id: uuid.UUID, name: str) -> Item | None:
+        return next((r for r in self.rows.values() if r.tenant_id == tenant_id and r.name == name), None)
 
-    async def list(self, *, offset: int = 0, limit: int = 50) -> list[Item]:
-        return list(self.rows.values())[offset : offset + limit]
+    async def get_by_sku(self, tenant_id: uuid.UUID, sku: str) -> Item | None:
+        return next((r for r in self.rows.values() if r.tenant_id == tenant_id and r.sku == sku), None)
+
+    async def search(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        q: str | None = None,
+        status: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[Item], int]:
+        rows = [r for r in self.rows.values() if r.tenant_id == tenant_id]
+        return rows, len(rows)
 
     async def delete(self, obj: Item) -> None:
         self.rows.pop(obj.id, None)
@@ -42,18 +55,24 @@ def service() -> ItemService:
     return ItemService(FakeItemRepository())  # type: ignore[arg-type]
 
 
-async def test_create_commits_once(service: ItemService) -> None:
-    created = await service.create(ItemCreate(name="a"))
+@pytest.fixture
+def tenant_id() -> uuid.UUID:
+    return uuid.uuid4()
+
+
+async def test_create_commits_once(service: ItemService, tenant_id: uuid.UUID) -> None:
+    created = await service.create(tenant_id, ItemCreate(name="a", sku="A-1"))
     assert created.name == "a"
+    assert created.tenant_id == tenant_id
     assert service.repo.commits == 1  # type: ignore[attr-defined]
 
 
-async def test_create_rejects_duplicates(service: ItemService) -> None:
-    await service.create(ItemCreate(name="a"))
+async def test_create_rejects_duplicates(service: ItemService, tenant_id: uuid.UUID) -> None:
+    await service.create(tenant_id, ItemCreate(name="a", sku="A-1"))
     with pytest.raises(ItemNameTakenError):
-        await service.create(ItemCreate(name="a"))
+        await service.create(tenant_id, ItemCreate(name="a", sku="A-2"))
 
 
-async def test_get_missing_raises_not_found(service: ItemService) -> None:
+async def test_get_missing_raises_not_found(service: ItemService, tenant_id: uuid.UUID) -> None:
     with pytest.raises(ItemNotFoundError):
-        await service.get(uuid.uuid4())
+        await service.get(tenant_id, uuid.uuid4())

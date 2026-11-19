@@ -253,6 +253,93 @@ def new_module(cfg: DxConfig, service: Service, module: str, entity: str | None 
     return created
 
 
+def new_catalog_example(cfg: DxConfig, service: Service) -> list[Path]:
+    """Install the tenant-scoped catalog showcase (categories + items) used by the SPA."""
+    created: list[Path] = []
+    variables = {"package": service.package, "service": service.name}
+    for name in ("categories", "items"):
+        dest_dir = service.src / "modules" / name
+        if dest_dir.exists():
+            raise SystemExit(f"dx: example module already exists at {dest_dir}")
+        pack = TEMPLATES / "example" / name
+        for src in sorted(pack.glob("*.tmpl")):
+            target = dest_dir / src.name[: -len(".tmpl")]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(string.Template(src.read_text(encoding="utf-8")).substitute(variables), encoding="utf-8")
+            created.append(target)
+    for tmpl_name, dest_rel in (
+        ("test_categories.py.tmpl", Path("tests/api/test_categories.py")),
+        ("test_items.py.tmpl", Path("tests/api/test_items.py")),
+        ("test_items_service.py.tmpl", Path("tests/unit/test_items_service.py")),
+    ):
+        src = TEMPLATES / "example" / "tests" / tmpl_name
+        target = service.path / dest_rel
+        if src.exists() and not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(string.Template(src.read_text(encoding="utf-8")).substitute(variables), encoding="utf-8")
+            created.append(target)
+    _add_resource(service, "CATEGORY", f"{service.name}.category")
+    _add_resource(service, "ITEM", f"{service.name}.item")
+    _grant_catalog_permissions(service)
+    _normalise(created, cfg.root)
+    return created
+
+
+def _grant_catalog_permissions(service: Service) -> None:
+    """Ensure member/viewer ROLE_PERMISSIONS include the catalog showcase resources."""
+    path = service.src / "permissions.py"
+    text = path.read_text(encoding="utf-8")
+    item = f"{service.name}.item"
+    category = f"{service.name}.category"
+    member_grants = [
+        f'"{item}:create"',
+        f'"{item}:read"',
+        f'"{item}:list"',
+        f'"{item}:update"',
+        f'"{item}:delete"',
+        f'"{category}:create"',
+        f'"{category}:read"',
+        f'"{category}:list"',
+        f'"{category}:update"',
+        f'"{category}:delete"',
+    ]
+    viewer_grants = [
+        f'"{item}:read"',
+        f'"{item}:list"',
+        f'"{category}:read"',
+        f'"{category}:list"',
+    ]
+    if "member" not in text:
+        # Insert a member role before the closing brace of ROLE_PERMISSIONS.
+        text = text.replace(
+            'ROLE_PERMISSIONS: dict[str, list[str]] = {\n    "admin": ["*"],\n',
+            'ROLE_PERMISSIONS: dict[str, list[str]] = {\n    "admin": ["*"],\n'
+            f'    "member": [{", ".join(member_grants)}],\n',
+            1,
+        )
+    else:
+        for grant in member_grants:
+            if grant not in text:
+                text = text.replace(
+                    '"member": [',
+                    f'"member": [\n        {grant},',
+                    1,
+                )
+    if re.search(r'"viewer":\s*\[\s*\]', text):
+        text = re.sub(
+            r'"viewer":\s*\[\s*\][^\n]*',
+            f'"viewer": [{", ".join(viewer_grants)}]',
+            text,
+            count=1,
+        )
+    else:
+        for grant in viewer_grants:
+            if grant in text:
+                continue
+            text = text.replace('"viewer": [', f'"viewer": [\n        {grant},', 1)
+    path.write_text(text, encoding="utf-8")
+
+
 def _add_resource(service: Service, member: str, value: str) -> None:
     path = service.src / "permissions.py"
     text = path.read_text(encoding="utf-8")
@@ -268,6 +355,8 @@ def _add_resource(service: Service, member: str, value: str) -> None:
 _SAAS_RESOURCES = (
     ("IDENTITY_TENANT", "identity.tenant"),
     ("IDENTITY_USER", "identity.user"),
+    ("IDENTITY_ROLE", "identity.role"),
+    ("IDENTITY_PERMISSION", "identity.permission"),
     ("IDENTITY_AUDIT", "identity.audit"),
     ("BILLING_PLAN", "billing.plan"),
     ("BILLING_SUBSCRIPTION", "billing.subscription"),
@@ -303,17 +392,22 @@ def new_saas(
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
             created.append(target)
-        test_tmpl = TEMPLATES / "saas" / "tests" / f"test_{name}.py.tmpl"
-        test_target = service.path / "tests" / "api" / f"test_{name}.py"
-        if test_tmpl.exists() and not test_target.exists():
-            test_target.parent.mkdir(parents=True, exist_ok=True)
-            test_target.write_text(
-                string.Template(test_tmpl.read_text(encoding="utf-8")).substitute(variables), encoding="utf-8"
-            )
-            created.append(test_target)
+        test_names = [name]
+        if name == "identity":
+            test_names.append("iam")
+        for test_name in test_names:
+            test_tmpl = TEMPLATES / "saas" / "tests" / f"test_{test_name}.py.tmpl"
+            test_target = service.path / "tests" / "api" / f"test_{test_name}.py"
+            if test_tmpl.exists() and not test_target.exists():
+                test_target.parent.mkdir(parents=True, exist_ok=True)
+                test_target.write_text(
+                    string.Template(test_tmpl.read_text(encoding="utf-8")).substitute(variables),
+                    encoding="utf-8",
+                )
+                created.append(test_target)
     resource_map = {
-        "identity": _SAAS_RESOURCES[:3],
-        "billing": _SAAS_RESOURCES[3:],
+        "identity": _SAAS_RESOURCES[:5],
+        "billing": _SAAS_RESOURCES[5:],
     }
     for name in modules:
         for member, value in resource_map[name]:

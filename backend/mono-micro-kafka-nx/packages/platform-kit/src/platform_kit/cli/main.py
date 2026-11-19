@@ -252,13 +252,16 @@ def cmd_token(cfg: DxConfig, args: argparse.Namespace) -> int:
 
 
 def cmd_new_service(cfg: DxConfig, args: argparse.Namespace) -> int:
-    from platform_kit.cli.scaffold import new_module, new_service
+    from platform_kit.cli.scaffold import new_service
 
     svc = new_service(cfg, args.name)
     print(f"dx: created service {svc.name} at {svc.path.relative_to(cfg.root) if svc.path != cfg.root else '.'}")
     if args.with_example:
-        new_module(load_config(cfg.root), svc, "items")
-        print("dx: added example module 'items'")
+        from platform_kit.cli.scaffold import new_catalog_example
+
+        for path in new_catalog_example(load_config(cfg.root), svc):
+            print(f"  + {path.relative_to(cfg.root)}")
+        print("dx: added catalog example modules (categories + items)")
     if args.with_saas:
         from platform_kit.cli.scaffold import new_saas
 

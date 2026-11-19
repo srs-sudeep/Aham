@@ -35,7 +35,13 @@ another module may be used only through its `service`, `schemas` or `errors` · 
 - Tenancy: roles live on **memberships**, not on the global user. Tokens carry `tid`; never trust a client-supplied tenant id.
   Tenant routes take `tenant_id: TenantIdDep` (binds RLS too). Only platform-operator routes (`_operator: PlatformOperatorDep`,
   `PLATFORM_OPERATOR_TENANT_ID`) may target another tenant. `dx check` TEN001 flags tenant-owned modules whose router binds neither.
+- IAM admin APIs (under `/auth`): `GET/PATCH /users`, `GET/POST/PATCH/DELETE /roles`, `PUT /roles/{id}/permissions`,
+  `GET /permissions`. System roles (`admin`/`member`/`viewer`) are shared and immutable; customize by creating **tenant** roles.
+  `ROLE_PERMISSIONS` in `permissions.py` is the bootstrap seed + code fallback; live grants come from the Role/Permission tables
+  and are embedded in the access JWT at issue time (`PermissionResolver` caches by role name — invalidate on mutation).
 - Isolation ≠ authorization: use `TenantScopedMixin` + Postgres RLS (`platform_kit.tenancy.enable_rls_sql`) on domain tables; fail closed on tenant mismatch.
+- Showcase catalog: `dx new-service --with-example` installs tenant-scoped `categories` + `items` (association via `category_id`);
+  mutating routes are gated with `require_feature("catalog")`.
 - Entitlements: gate paid features with `require_feature("…")` / `require_quota("…")` — never call a payment provider on the hot path. ManualProvider activates plans; Stripe is a phase-2 `PaymentProvider`.
 - Audit: append-only (`/auth/audit`); never store passwords/tokens in payloads.
 - Phase 2: OIDC SSO (`/auth/sso/*`), SCIM (`/scim/v2/Users`), API keys (`aham_…` / `X-API-Key`), TOTP MFA.

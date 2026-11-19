@@ -1,0 +1,50 @@
+"""API tests for tenant-scoped categories."""
+
+import uuid
+
+from core_api.permissions import Resource
+
+BASE = "/api/v1/categories"
+
+
+def perm(action: str) -> str:
+    return f"{Resource.CATEGORY.value}:{action}"
+
+
+async def test_create_list_and_update(client, auth, grant_catalog) -> None:
+    tid = str(uuid.uuid4())
+    await grant_catalog(tid)
+    headers = auth(perm("create"), perm("list"), perm("update"), perm("read"), tid=tid)
+
+    created = await client.post(BASE, json={"name": "Hardware", "description": "Parts"}, headers=headers)
+    assert created.status_code == 201, created.text
+    category_id = created.json()["id"]
+
+    listed = await client.get(f"{BASE}?q=Hard", headers=headers)
+    assert listed.status_code == 200
+    assert listed.json()["total"] == 1
+
+    updated = await client.put(
+        f"{BASE}/{category_id}", json={"name": "Hardware+", "description": "More"}, headers=headers
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["name"] == "Hardware+"
+
+
+async def test_tenant_isolation(client, auth, grant_catalog) -> None:
+    a, b = str(uuid.uuid4()), str(uuid.uuid4())
+    await grant_catalog(a)
+    await grant_catalog(b)
+    headers_a = auth(perm("create"), perm("read"), tid=a)
+    headers_b = auth(perm("read"), tid=b)
+
+    created = await client.post(BASE, json={"name": "OnlyA"}, headers=headers_a)
+    category_id = created.json()["id"]
+    assert (await client.get(f"{BASE}/{category_id}", headers=headers_b)).status_code == 404
+
+
+async def test_catalog_feature_required_on_write(client, auth, grant_catalog) -> None:
+    tid = str(uuid.uuid4())
+    await grant_catalog(tid, catalog=False)
+    response = await client.post(BASE, json={"name": "X"}, headers=auth(perm("create"), tid=tid))
+    assert response.status_code == 403

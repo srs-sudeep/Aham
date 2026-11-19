@@ -6,6 +6,8 @@ alwaysApply: false
 - The tenant comes from the token (`tid`), never from the body, query or `X-Tenant-ID`. In routers: `tenant_id: TenantIdDep` (also sets Postgres RLS for the session), then pass it to the service.
 - Tenant-owned tables: `tenant_id` column (`TenantScopedMixin`), repository queries filter by it, and the migration calls `op.execute(enable_rls_sql("<table>"))`. When loading by id, `assert_same_tenant(row.tenant_id, principal)` or filter by both.
 - Cross-tenant endpoints (plan changes, support tooling) are operator-only: add `_operator: PlatformOperatorDep`. A tenant admin's `*` permission is not enough.
-- Paid features: `dependencies=[Depends(require_feature("sso"))]`; metered actions: `require_quota("api_calls")`. Never call the payment provider on a request path.
+- Paid features: `dependencies=[Depends(require_feature("catalog"))]`; metered actions: `require_quota("api_calls")`. Never call the payment provider on a request path.
+- IAM: manage members via `/auth/users`; customize grants with tenant roles (`POST /auth/roles`, `PUT /auth/roles/{id}/permissions`). Do not mutate system roles — clone into a tenant role. `ROLE_PERMISSIONS` seeds the DB only.
+- Showcase domain modules (`items` / `categories`) must be tenant-scoped and use `TenantIdDep`; association fields are FKs with `ON DELETE SET NULL`.
 - `dx check` TEN001 fails a module whose `models.py` has `tenant_id` but whose `router.py` binds no tenant. A genuinely global router must say why: `# dx: cross-tenant <reason>`.
 - Tests: two tenants, prove tenant B cannot read/change tenant A (expect 403/404), and that operator routes reject non-operators.

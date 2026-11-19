@@ -1,0 +1,84 @@
+"""HTTP layer only: parse input, check permission, call the service, return a schema."""
+
+import uuid
+from typing import Annotated
+
+from fastapi import Depends, Query
+from pydantic import BaseModel, Field
+
+from $package.permissions import Resource
+from platform_kit import Action, Permission, SecureRouter
+from platform_kit.entitlements import require_feature
+from platform_kit.tenancy import TenantIdDep
+
+from .dependencies import ItemServiceDep
+from .schemas import ItemCreate, ItemPage, ItemRead, ItemUpdate
+
+router = SecureRouter(prefix="/items", tags=["items"])
+
+
+class ItemListQuery(BaseModel):
+    q: str | None = None
+    status: str | None = None
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, alias="pageSize", ge=1, le=100)
+
+
+@router.post(
+    "",
+    permission=Permission(Resource.ITEM, Action.CREATE),
+    summary="Create item",
+    status_code=201,
+    dependencies=[Depends(require_feature("catalog"))],
+)
+async def create_item(body: ItemCreate, svc: ItemServiceDep, tenant_id: TenantIdDep) -> ItemRead:
+    return await svc.create(tenant_id, body)
+
+
+@router.get(
+    "",
+    permission=Permission(Resource.ITEM, Action.LIST),
+    summary="List items",
+)
+async def list_items(
+    svc: ItemServiceDep,
+    tenant_id: TenantIdDep,
+    query: Annotated[ItemListQuery, Query()],
+) -> ItemPage:
+    return await svc.list(
+        tenant_id,
+        q=query.q,
+        status=query.status,
+        page=query.page,
+        page_size=query.page_size,
+    )
+
+
+@router.get(
+    "/{item_id}",
+    permission=Permission(Resource.ITEM, Action.READ),
+    summary="Get item",
+)
+async def get_item(item_id: uuid.UUID, svc: ItemServiceDep, tenant_id: TenantIdDep) -> ItemRead:
+    return await svc.get(tenant_id, item_id)
+
+
+@router.put(
+    "/{item_id}",
+    permission=Permission(Resource.ITEM, Action.UPDATE),
+    summary="Update item",
+    dependencies=[Depends(require_feature("catalog"))],
+)
+async def update_item(item_id: uuid.UUID, body: ItemUpdate, svc: ItemServiceDep, tenant_id: TenantIdDep) -> ItemRead:
+    return await svc.update(tenant_id, item_id, body)
+
+
+@router.delete(
+    "/{item_id}",
+    permission=Permission(Resource.ITEM, Action.DELETE),
+    summary="Delete item",
+    status_code=204,
+    dependencies=[Depends(require_feature("catalog"))],
+)
+async def delete_item(item_id: uuid.UUID, svc: ItemServiceDep, tenant_id: TenantIdDep) -> None:
+    await svc.delete(tenant_id, item_id)
