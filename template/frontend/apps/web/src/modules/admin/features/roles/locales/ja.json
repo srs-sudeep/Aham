@@ -1,0 +1,47 @@
+{
+  "roles": {
+    "title": "ロール",
+    "description": "このテナントのシステム／カスタムロール。",
+    "empty": "ロールがありません。",
+    "new": "新規ロール",
+    "delete": "削除",
+    "detailTitle": "ロール",
+    "detailDescription": "権限を確認し、カスタムロールを編集します。",
+    "allPermissions": "すべての権限",
+    "permissionCount": "{{count}} 件の権限",
+    "systemImmutable": "システムロールは読み取り専用です。権限を変えるにはカスタムロールを作成してください。",
+    "kind": {
+      "system": "システム",
+      "custom": "カスタム"
+    },
+    "columns": {
+      "name": "名前",
+      "kind": "種類",
+      "permissions": "権限",
+      "actions": "操作"
+    },
+    "fields": {
+      "name": "名前",
+      "namePlaceholder": "ops_manager",
+      "permissions": "権限"
+    },
+    "form": {
+      "cancel": "キャンセル",
+      "create": "作成",
+      "saving": "保存中…",
+      "savePermissions": "権限を保存"
+    },
+    "createDialog": {
+      "title": "カスタムロールを作成"
+    },
+    "deleteDialog": {
+      "title": "ロールを削除しますか？",
+      "description": "カスタムロール {{name}} を削除します。利用中のメンバーは先に付け替えてください。"
+    },
+    "toast": {
+      "created": "ロールを作成しました",
+      "deleted": "ロールを削除しました",
+      "permissionsUpdated": "権限を更新しました"
+    }
+  }
+}

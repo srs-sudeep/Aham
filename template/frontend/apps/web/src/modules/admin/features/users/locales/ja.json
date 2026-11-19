@@ -1,0 +1,53 @@
+{
+  "users": {
+    "title": "ユーザー",
+    "description": "このテナントのメンバーを管理します。",
+    "empty": "メンバーがいません。",
+    "invite": "招待",
+    "edit": "編集",
+    "disable": "無効化",
+    "enable": "有効化",
+    "columns": {
+      "email": "メール",
+      "role": "ロール",
+      "membershipStatus": "所属状態",
+      "status": "ステータス",
+      "actions": "操作"
+    },
+    "membershipStatus": {
+      "active": "有効",
+      "disabled": "無効"
+    },
+    "fields": {
+      "email": "メール",
+      "role": "ロール"
+    },
+    "form": {
+      "cancel": "キャンセル",
+      "invite": "招待を送る",
+      "sending": "送信中…",
+      "save": "保存",
+      "saving": "保存中…"
+    },
+    "inviteDialog": {
+      "title": "ユーザーを招待"
+    },
+    "editDialog": {
+      "title": "メンバーを編集"
+    },
+    "disableDialog": {
+      "title": "メンバーを無効化しますか？",
+      "description": "{{email}} のこのテナントへのアクセスを無効にします。"
+    },
+    "enableDialog": {
+      "title": "メンバーを有効化しますか？",
+      "description": "{{email}} のこのテナントへのアクセスを復元します。"
+    },
+    "toast": {
+      "invited": "招待を送信しました",
+      "updated": "メンバーを更新しました",
+      "disabled": "メンバーを無効化しました",
+      "enabled": "メンバーを有効化しました"
+    }
+  }
+}

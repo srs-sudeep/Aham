@@ -1,0 +1,26 @@
+{
+  "billing": {
+    "title": "請求",
+    "description": "このテナントのプランとサブスクリプション。",
+    "plansTitle": "利用可能なプラン",
+    "subscriptionTitle": "現在のサブスクリプション",
+    "currentPlan": "現在",
+    "checkout": "プランを選ぶ",
+    "cancel": "解約",
+    "noSubscription": "サブスクリプションがありません。",
+    "noPlans": "プランがありません。",
+    "interval": "{{interval}}ごと",
+    "fields": {
+      "plan": "プラン",
+      "periodEnd": "期間終了"
+    },
+    "cancelDialog": {
+      "title": "サブスクリプションを解約しますか？",
+      "description": "現在の期間終了後、有料機能が利用できなくなります。"
+    },
+    "toast": {
+      "checkoutStarted": "チェックアウトを開いています…",
+      "canceled": "サブスクリプションを解約しました"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "users": {
+    "title": "Users",
+    "description": "Manage members of this tenant.",
+    "empty": "No members yet.",
+    "invite": "Invite user",
+    "edit": "Edit",
+    "disable": "Disable",
+    "enable": "Enable",
+    "columns": {
+      "email": "Email",
+      "role": "Role",
+      "membershipStatus": "Membership",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "membershipStatus": {
+      "active": "Active",
+      "disabled": "Disabled"
+    },
+    "fields": {
+      "email": "Email",
+      "role": "Role"
+    },
+    "form": {
+      "cancel": "Cancel",
+      "invite": "Send invite",
+      "sending": "Sending…",
+      "save": "Save",
+      "saving": "Saving…"
+    },
+    "inviteDialog": {
+      "title": "Invite a user"
+    },
+    "editDialog": {
+      "title": "Edit member"
+    },
+    "disableDialog": {
+      "title": "Disable member?",
+      "description": "Disable access for {{email}} in this tenant."
+    },
+    "enableDialog": {
+      "title": "Enable member?",
+      "description": "Restore access for {{email}} in this tenant."
+    },
+    "toast": {
+      "invited": "Invitation sent",
+      "updated": "Member updated",
+      "disabled": "Member disabled",
+      "enabled": "Member enabled"
+    }
+  }
+}

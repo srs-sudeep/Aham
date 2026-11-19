@@ -10,11 +10,27 @@ function mocksEnabled(): boolean {
  */
 export async function startMocks(): Promise<void> {
   if (!mocksEnabled()) return;
-  const [{ setupWorker }, { itemsHandlers }, { categoriesHandlers }] = await Promise.all([
+  const [
+    { setupWorker },
+    { itemsHandlers },
+    { categoriesHandlers },
+    { usersHandlers },
+    { rolesHandlers },
+    { billingHandlers },
+  ] = await Promise.all([
     import("msw/browser"),
     import("../modules/catalog/features/items/api/items.handlers"),
     import("../modules/catalog/features/categories/api/categories.handlers"),
+    import("../modules/admin/features/users/api/users.handlers"),
+    import("../modules/admin/features/roles/api/roles.handlers"),
+    import("../modules/admin/features/billing/api/billing.handlers"),
   ]);
-  const worker = setupWorker(...itemsHandlers, ...categoriesHandlers);
+  const worker = setupWorker(
+    ...itemsHandlers,
+    ...categoriesHandlers,
+    ...usersHandlers,
+    ...rolesHandlers,
+    ...billingHandlers,
+  );
   await worker.start({ onUnhandledRequest: "bypass" });
 }

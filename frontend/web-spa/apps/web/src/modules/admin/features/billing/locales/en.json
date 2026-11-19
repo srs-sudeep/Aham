@@ -1,0 +1,26 @@
+{
+  "billing": {
+    "title": "Billing",
+    "description": "Plans and subscription for this tenant.",
+    "plansTitle": "Available plans",
+    "subscriptionTitle": "Current subscription",
+    "currentPlan": "Current",
+    "checkout": "Choose plan",
+    "cancel": "Cancel subscription",
+    "noSubscription": "No subscription found.",
+    "noPlans": "No plans available.",
+    "interval": "Billed {{interval}}ly",
+    "fields": {
+      "plan": "Plan",
+      "periodEnd": "Period ends"
+    },
+    "cancelDialog": {
+      "title": "Cancel subscription?",
+      "description": "Your tenant will lose paid entitlements at the end of the current period."
+    },
+    "toast": {
+      "checkoutStarted": "Opening checkout…",
+      "canceled": "Subscription canceled"
+    }
+  }
+}

@@ -22,7 +22,16 @@ const DEV_PRINCIPAL: Principal = {
   email: "dev@example.com",
   name: "Dev User",
   tenantId: "acme",
-  permissions: ["public", "items:*", "categories:*"],
+  permissions: [
+    "public",
+    "items:*",
+    "categories:*",
+    "identity.user:*",
+    "identity.role:*",
+    "identity.permission:list",
+    "billing.plan:list",
+    "billing.subscription:*",
+  ],
 };
 
 type Step = Exclude<LoginStep, { kind: "done" }> | { kind: "credentials" } | { kind: "sso" };

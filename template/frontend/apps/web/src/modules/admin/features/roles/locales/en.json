@@ -1,0 +1,47 @@
+{
+  "roles": {
+    "title": "Roles",
+    "description": "System and custom roles for this tenant.",
+    "empty": "No roles yet.",
+    "new": "New role",
+    "delete": "Delete",
+    "detailTitle": "Role",
+    "detailDescription": "View grants and edit custom role permissions.",
+    "allPermissions": "All permissions",
+    "permissionCount": "{{count}} permissions",
+    "systemImmutable": "System roles are read-only. Create a custom role to change grants.",
+    "kind": {
+      "system": "System",
+      "custom": "Custom"
+    },
+    "columns": {
+      "name": "Name",
+      "kind": "Kind",
+      "permissions": "Permissions",
+      "actions": "Actions"
+    },
+    "fields": {
+      "name": "Name",
+      "namePlaceholder": "ops_manager",
+      "permissions": "Permissions"
+    },
+    "form": {
+      "cancel": "Cancel",
+      "create": "Create role",
+      "saving": "Saving…",
+      "savePermissions": "Save permissions"
+    },
+    "createDialog": {
+      "title": "Create custom role"
+    },
+    "deleteDialog": {
+      "title": "Delete role?",
+      "description": "Delete the custom role {{name}}. Members using it must be reassigned first."
+    },
+    "toast": {
+      "created": "Role created",
+      "deleted": "Role deleted",
+      "permissionsUpdated": "Permissions updated"
+    }
+  }
+}

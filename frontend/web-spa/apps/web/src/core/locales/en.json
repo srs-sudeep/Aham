@@ -30,7 +30,7 @@
     "email": "Email",
     "password": "Password",
     "submit": "Continue",
-    "devHint": "Uses a mock principal with catalog permissions",
+    "devHint": "Uses a mock principal with catalog and admin permissions",
     "failed": "Sign-in failed. Please try again.",
     "chooseTenant": "Choose an organization",
     "mfaCode": "Authentication code",
