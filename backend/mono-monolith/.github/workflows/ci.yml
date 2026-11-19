@@ -1,0 +1,169 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # 1) Fast gate: formatting, lint, types, architecture rules (annotated inline on the PR)
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - run: uv sync --all-packages
+      - name: Lockfile is up to date
+        run: uv lock --check
+      - name: Ruff lint
+        run: uv run ruff check --output-format=github .
+      - name: Ruff format
+        run: uv run ruff format --check .
+      - name: Pyright
+        run: uv run pyright
+      - name: Architecture / RBAC / layering (dx check)
+        run: uv run dx check --format github
+      - name: Secrets scan
+        uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Dependency vulnerabilities
+        run: uv export --format requirements-txt --no-hashes > /tmp/req.txt && uvx pip-audit -r /tmp/req.txt --progress-spinner off
+
+  # 2) Which services changed? (shared packages / root config changes => all services)
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.affected.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, persist-credentials: false }
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - run: uv sync --all-packages
+      - id: affected
+        env:
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: |
+          if [[ ! "$BASE_REF" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "Invalid base ref: $BASE_REF" >&2
+            exit 1
+          fi
+          echo "services=$(uv run dx affected --json --base "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+
+  # 3) Unit + API tests against real Postgres, with coverage gate
+  test:
+    needs: [quality, plan]
+    if: needs.plan.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.plan.outputs.services) }}
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: test }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/test
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, persist-credentials: false }
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - run: uv sync --all-packages
+      - name: Tests + coverage
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          if [[ ! "$SERVICE" =~ ^[a-z][a-z0-9-]*$ ]]; then
+            echo "Invalid service name: $SERVICE" >&2
+            exit 1
+          fi
+          uv run dx test --service "$SERVICE" --cov
+      - name: Kit tests
+        run: uv run pytest packages/platform-kit/tests
+
+  # 4) Property-based API testing from the OpenAPI spec (finds 500s, schema mismatches, auth gaps)
+  api-fuzz:
+    needs: [quality, plan]
+    if: needs.plan.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.plan.outputs.services) }}
+    env:
+      ENV: test
+      DB_AUTO_CREATE: "true"
+      DATABASE_URL: sqlite+aiosqlite:///./fuzz.db
+      KAFKA_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - run: uv sync --all-packages
+      - name: Start service
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          if [[ ! "$SERVICE" =~ ^[a-z][a-z0-9-]*$ ]]; then
+            echo "Invalid service name: $SERVICE" >&2
+            exit 1
+          fi
+          uv run dx run "$SERVICE" --port 8000 --no-reload &
+          for i in $(seq 1 30); do curl -fs localhost:8000/health/live && break; sleep 1; done
+      - name: Schemathesis
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          TOKEN=$(uv run dx token "$SERVICE" --all)
+          uvx schemathesis run http://localhost:8000/openapi.json -H "Authorization: Bearer $TOKEN" --checks all
+
+  # 6) The image must build (and its healthcheck must pass)
+  docker:
+    needs: [quality, plan]
+    if: needs.plan.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.plan.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: docker/setup-buildx-action@v3
+      - name: Validate service name
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          if [[ ! "$SERVICE" =~ ^[a-z][a-z0-9-]*$ ]]; then
+            echo "Invalid service name: $SERVICE" >&2
+            exit 1
+          fi
+          echo "DOCKERFILE=services/$SERVICE/Dockerfile" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=my-platform-$SERVICE:ci" >> "$GITHUB_ENV"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          tags: ${{ env.IMAGE_TAG }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

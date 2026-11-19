@@ -1,0 +1,7 @@
+language: python
+layer: library
+
+tasks:
+  lint:
+    command: uv run ruff check packages/contracts
+    options: { runFromWorkspaceRoot: true }

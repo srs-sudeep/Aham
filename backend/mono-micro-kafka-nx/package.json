@@ -1,0 +1,11 @@
+{
+  "name": "my-platform",
+  "private": true,
+  "scripts": {
+    "affected:test": "nx affected -t test",
+    "graph": "nx graph"
+  },
+  "devDependencies": {
+    "nx": "^20.3.0"
+  }
+}

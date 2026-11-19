@@ -1,0 +1,157 @@
+{%- set is_poly_svc = repo_layout == 'polyrepo_service' -%}
+{%- set svc_pkg = first_service | replace('-', '_') -%}
+{%- if is_poly_svc -%}
+# Polyrepo SERVICE repo: this file is both the service package and the tooling config.
+[project]
+name = "{{ first_service }}"
+version = "0.1.0"
+description = "{{ first_service }} service"
+requires-python = ">={{ python_version }}"
+dependencies = [
+  "platform-kit[otel{% if messaging == 'kafka' %},kafka{% endif %}]",
+{%- if messaging == 'kafka' %}
+  "contracts",
+{%- endif %}
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/{{ svc_pkg }}"]
+
+[tool.uv.sources]
+# Pin to a TAG. Bump with Renovate/Dependabot; never track a branch.
+platform-kit = { git = "{{ kit_git_url }}", subdirectory = "packages/platform-kit", tag = "{{ kit_version }}" }
+{%- if messaging == 'kafka' %}
+contracts = { git = "{{ kit_git_url }}", subdirectory = "packages/contracts", tag = "{{ kit_version }}" }
+{%- endif %}
+{%- else -%}
+# Workspace root (not a package itself). Members: shared packages + services.
+[project]
+name = "{{ project_slug }}-workspace"
+version = "0.0.0"
+requires-python = ">={{ python_version }}"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"{% if repo_layout == 'monorepo' %}, "services/*"{% endif %}]
+
+[tool.uv.sources]
+platform-kit = { workspace = true }
+{%- endif %}
+
+[dependency-groups]
+dev = [
+  "platform-kit[testing]",
+  # Dev-only, and deliberately included whatever the answers were: platform_kit.messaging
+  # and .telemetry import these lazily, and pyright still needs to resolve them to
+  # type-check the kit (a kit-only repo installs no service that would pull them in).
+  "platform-kit[kafka]",
+  "platform-kit[otel]",
+  "pytest-cov>=6.0",
+  "ruff>=0.8",
+  "pyright>=1.1.390",
+  "pre-commit>=4.0",
+  "watchfiles>=1.0",
+]
+
+# ───────────────────────────── dx (project rules) ─────────────────────────────
+[tool.dx]
+project_slug = "{{ project_slug }}"
+layout = "{{ repo_layout }}"
+architecture = "{{ 'microservices' if is_microservices else 'monolith' }}"
+repo_manager = "{{ repo_manager }}"
+messaging = "{{ messaging }}"
+python_version = "{{ python_version }}"
+{%- if is_poly_svc %}
+service = "{{ first_service }}"
+kit_git_url = "{{ kit_git_url }}"
+kit_version = "{{ kit_version }}"
+{%- else %}
+services_dir = "services"
+{%- endif %}
+# Paths AI agents are blocked from editing (Claude PreToolUse hook). Also listed in CODEOWNERS.
+# Leads: DX_ALLOW_BASELINE=1 to edit these (required in polyrepo_kit, where the kit is the product).
+# permissions.py is always blocked by basename in the hook.
+protected_paths = [
+{%- if has_kit_source %}
+  "packages/platform-kit",
+{%- endif %}
+{%- if repo_layout == 'polyrepo_kit' or messaging == 'kafka' %}
+  "packages/contracts",
+{%- endif %}
+  ".github",
+  "pyproject.toml",
+  ".pre-commit-config.yaml",
+  "AGENTS.md",
+{%- if 'claude' in ai_tools %}
+  "CLAUDE.md",
+  ".claude",
+{%- endif %}
+{%- if 'cursor' in ai_tools %}
+  ".cursor",
+{%- endif %}
+]
+module_required = ["router", "schemas", "service", "repository", "models", "dependencies"]
+module_optional = ["errors", "events", "constants"]
+max_route_statements = 6
+ignore = []
+
+# ───────────────────────────── ruff (lint + format) ───────────────────────────
+[tool.ruff]
+line-length = 120
+target-version = "py{{ python_version | replace('.', '') }}"
+extend-exclude = ["**/alembic/versions"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RET", "ARG", "PTH",
+  "ASYNC", "S", "T20", "DTZ", "PL", "RUF", "FAST", "TID", "PERF", "LOG", "G",
+]
+ignore = ["PLR0913", "PLR2004", "S104", "RUF012", "A002", "B008", "PLC0415"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S105", "S106", "ARG", "PLR2004", "E402"]
+"**/alembic/**" = ["E402", "I001"]
+"**/platform_kit/cli/**" = ["T201", "S603", "S607", "PLR0911", "PLR0912", "ARG001", "C901", "PLR0915"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["platform_kit", "contracts"]
+
+# Immediate in-editor errors via the Ruff extension (same intent as dx rules ERR001/HTTP001)
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"fastapi.HTTPException".msg = "Raise a platform_kit error (AppError subclass) instead. See AGENTS.md#errors"
+"starlette.exceptions.HTTPException".msg = "Raise a platform_kit error (AppError subclass) instead."
+"requests".msg = "Use platform_kit.http.ServiceClient for inter-service calls."
+"logging.getLogger".msg = "Use platform_kit.get_logger(__name__)."
+
+# ───────────────────────────── pyright (types) ────────────────────────────────
+[tool.pyright]
+pythonVersion = "{{ python_version }}"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+include = [{% if is_poly_svc %}"src", "tests"{% else %}"packages"{% if repo_layout == 'monorepo' %}, "services"{% endif %}{% endif %}]
+exclude = ["**/alembic/versions", "**/__pycache__", "**/node_modules"]
+reportMissingTypeStubs = false
+reportUnnecessaryTypeIgnoreComment = "warning"
+
+# ───────────────────────────── pytest / coverage ──────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "--import-mode=importlib -ra --strict-markers"
+
+[tool.coverage.run]
+branch = true
+omit = ["**/alembic/**", "**/tests/**"]
+
+[tool.coverage.report]
+fail_under = 80
+skip_covered = true
+show_missing = true

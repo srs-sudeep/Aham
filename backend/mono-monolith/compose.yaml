@@ -1,0 +1,28 @@
+# Infrastructure for local dev and simple Docker-only deployments (no Kubernetes needed).
+# `uv run dx up` merges this with every service's compose.service.yaml.
+name: my-platform
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro   # one database per service
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 5s
+      retries: 10
+
+  jaeger:   # traces UI at http://localhost:16686 (`dx up --observability`)
+    image: jaegertracing/all-in-one:1.62.0
+    profiles: [observability]
+    environment: { COLLECTOR_OTLP_ENABLED: "true" }
+    ports: ["16686:16686", "4317:4317"]
+
+volumes:
+  pgdata:

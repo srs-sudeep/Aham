@@ -1,0 +1,67 @@
+"""HTTP layer only: parse input, check permission, call the service, return a schema."""
+
+import uuid
+from typing import Annotated
+
+from fastapi import Query
+
+from platform_kit import Action, Permission, SecureRouter
+from $package.permissions import Resource
+
+from .dependencies import ${Entity}ServiceDep
+from .schemas import ${Entity}Create, ${Entity}Page, ${Entity}Read, ${Entity}Update
+
+router = SecureRouter(prefix="/$module_url", tags=["$module_url"])
+
+
+@router.post(
+    "",
+    permission=Permission(Resource.$RESOURCE, Action.CREATE),
+    summary="Create $entity_human_lower",
+    status_code=201,
+)
+async def create_$entity(body: ${Entity}Create, svc: ${Entity}ServiceDep) -> ${Entity}Read:
+    return await svc.create(body)
+
+
+@router.get(
+    "",
+    permission=Permission(Resource.$RESOURCE, Action.LIST),
+    summary="List $module_human",
+)
+async def list_$module(
+    svc: ${Entity}ServiceDep,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> ${Entity}Page:
+    return await svc.list(offset=offset, limit=limit)
+
+
+@router.get(
+    "/{${entity}_id}",
+    permission=Permission(Resource.$RESOURCE, Action.READ),
+    summary="Get $entity_human_lower",
+)
+async def get_$entity(${entity}_id: uuid.UUID, svc: ${Entity}ServiceDep) -> ${Entity}Read:
+    return await svc.get(${entity}_id)
+
+
+@router.patch(
+    "/{${entity}_id}",
+    permission=Permission(Resource.$RESOURCE, Action.UPDATE),
+    summary="Update $entity_human_lower",
+)
+async def update_$entity(
+    ${entity}_id: uuid.UUID, body: ${Entity}Update, svc: ${Entity}ServiceDep
+) -> ${Entity}Read:
+    return await svc.update(${entity}_id, body)
+
+
+@router.delete(
+    "/{${entity}_id}",
+    permission=Permission(Resource.$RESOURCE, Action.DELETE),
+    summary="Delete $entity_human_lower",
+    status_code=204,
+)
+async def delete_$entity(${entity}_id: uuid.UUID, svc: ${Entity}ServiceDep) -> None:
+    await svc.delete(${entity}_id)

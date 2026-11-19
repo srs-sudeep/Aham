@@ -1,0 +1,13 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_src_path: /Users/srs/Desktop/Dev/SASS/fastapi-platform-template-and-cases/1-template
+ai_tools:
+- claude
+- cursor
+first_service: core-api
+kit_git_url: file:///Users/srs/Desktop/Dev/SASS/fastapi-platform-template-and-cases/2-output/poly-kit
+kit_version: v0.1.0
+messaging: kafka
+project_name: My Platform
+project_slug: my-platform
+python_version: '3.12'
+repo_layout: polyrepo_service

@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "sharedGlobals": ["{workspaceRoot}/pyproject.toml", "{workspaceRoot}/uv.lock"]
+  },
+  "targetDefaults": {
+    "lint": { "cache": true, "inputs": ["default"] },
+    "test": { "cache": true, "inputs": ["default"], "dependsOn": ["^lint"] }
+  },
+  "defaultBase": "main"
+}

@@ -1,0 +1,18 @@
+[project]
+name = "$service"
+version = "0.1.0"
+description = "$service service"
+requires-python = ">=$python_version"
+dependencies = [
+$kit_dependencies
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/$package"]
+
+[tool.uv.sources]
+$kit_sources

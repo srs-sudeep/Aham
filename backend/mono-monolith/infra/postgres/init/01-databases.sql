@@ -1,0 +1,3 @@
+-- One database per service. `dx new-service` appends a line here.
+-- Init scripts run only on a fresh volume: after adding a service run `uv run dx down --volumes` (dev only).
+CREATE DATABASE core_api;

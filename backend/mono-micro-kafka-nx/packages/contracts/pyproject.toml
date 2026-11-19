@@ -1,0 +1,16 @@
+[project]
+name = "contracts"
+version = "0.1.0"
+description = "Shared, versioned event schemas (and optional typed API clients). Producers and consumers import from here."
+requires-python = ">=3.12"
+dependencies = ["platform-kit"]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/contracts"]
+
+[tool.uv.sources]
+platform-kit = { workspace = true }

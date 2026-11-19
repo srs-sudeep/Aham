@@ -1,0 +1,10 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "platform-kit",
+  "projectType": "library",
+  "sourceRoot": "packages/platform-kit/src",
+  "targets": {
+    "lint": { "executor": "nx:run-commands", "options": { "command": "uv run ruff check packages/platform-kit && uv run pyright packages/platform-kit", "cwd": "{workspaceRoot}" }, "cache": true },
+    "test": { "executor": "nx:run-commands", "options": { "command": "uv run pytest packages/platform-kit/tests", "cwd": "{workspaceRoot}" }, "cache": true }
+  }
+}

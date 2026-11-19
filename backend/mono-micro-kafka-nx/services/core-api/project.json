@@ -1,0 +1,43 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "core-api",
+  "projectType": "application",
+  "sourceRoot": "services/core-api/src",
+  "implicitDependencies": [
+    "platform-kit",
+    "contracts"
+  ],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv run dx lint --service core-api",
+        "cwd": "{workspaceRoot}"
+      },
+      "cache": true
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv run dx test --service core-api",
+        "cwd": "{workspaceRoot}"
+      },
+      "cache": true
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv run dx run core-api",
+        "cwd": "{workspaceRoot}"
+      },
+      "continuous": true
+    },
+    "docker": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -f services/core-api/Dockerfile -t my-platform-core-api .",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

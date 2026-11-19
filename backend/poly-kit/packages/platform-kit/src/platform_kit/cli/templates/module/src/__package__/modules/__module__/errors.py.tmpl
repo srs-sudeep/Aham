@@ -1,0 +1,13 @@
+"""Domain errors. `message` is shown to users; pass `detail=` for developers (logged, dev-only in responses)."""
+
+from platform_kit import ConflictError, NotFoundError
+
+
+class ${Entity}NotFoundError(NotFoundError):
+    code = "${entity}_not_found"
+    message = "$Entity_human not found."
+
+
+class ${Entity}NameTakenError(ConflictError):
+    code = "${entity}_name_taken"
+    message = "An $entity_human_lower with this name already exists."

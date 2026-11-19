@@ -1,0 +1,19 @@
+# Baseline: changes need a platform lead. Replace the team handle.
+/.github/                     @your-org/platform-leads
+/pyproject.toml               @your-org/platform-leads
+/.pre-commit-config.yaml      @your-org/platform-leads
+/AGENTS.md                    @your-org/platform-leads
+{%- if has_kit_source %}
+/packages/platform-kit/       @your-org/platform-leads
+{%- endif %}
+{%- if repo_layout == 'polyrepo_kit' or messaging == 'kafka' %}
+/packages/contracts/          @your-org/platform-leads
+{%- endif %}
+{%- if 'claude' in ai_tools %}
+/CLAUDE.md                    @your-org/platform-leads
+/.claude/                     @your-org/platform-leads
+{%- endif %}
+{%- if 'cursor' in ai_tools %}
+/.cursor/                     @your-org/platform-leads
+{%- endif %}
+**/permissions.py             @your-org/platform-leads

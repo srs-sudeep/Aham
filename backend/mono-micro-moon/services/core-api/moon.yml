@@ -1,0 +1,18 @@
+language: python
+layer: application
+dependsOn: ["platform-kit"]
+
+tasks:
+  lint:
+    command: uv run dx lint --service core-api
+    options: { runFromWorkspaceRoot: true }
+  test:
+    command: uv run dx test --service core-api
+    options: { runFromWorkspaceRoot: true }
+  serve:
+    command: uv run dx run core-api
+    preset: server
+    options: { runFromWorkspaceRoot: true }
+  docker:
+    command: docker build -f services/core-api/Dockerfile -t my-platform-core-api .
+    options: { runFromWorkspaceRoot: true, cache: false }

@@ -1,0 +1,18 @@
+"""Every resource this service protects + which roles get which permissions.
+
+Permission strings look like "<resource>:<action>", e.g. "$service.item:create".
+`dx new-module` adds a Resource entry automatically. `dx permissions $service` prints the matrix.
+"""
+
+from enum import StrEnum
+
+
+class Resource(StrEnum):
+    # dx:resources (new entries are inserted above this line)
+    pass
+
+
+ROLE_PERMISSIONS: dict[str, list[str]] = {
+    "admin": ["*"],
+    "viewer": [],  # e.g. "$service.item:read", "$service.item:list"
+}

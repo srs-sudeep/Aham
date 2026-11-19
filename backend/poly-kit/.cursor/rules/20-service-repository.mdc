@@ -1,0 +1,11 @@
+---
+description: Rules for service, repository, models, schemas
+globs: ["**/modules/*/service.py", "**/modules/*/repository.py", "**/modules/*/models.py", "**/modules/*/schemas.py"]
+alwaysApply: false
+---
+- service.py: one `<Entity>Service` class; framework-free (no fastapi/starlette); raise domain errors from errors.py
+  with a user `message` and a developer `detail=`; call `await self.repo.commit()` once per write use-case; log with `get_logger`.
+- repository.py: subclass `BaseRepository[Model]`; queries only; bound parameters only (never f-string SQL).
+- models.py: SQLAlchemy only, inherit `UUIDPrimaryKey, Timestamps, Base`. Schema change => `uv run dx db revision`.
+- schemas.py: Pydantic only; `<Entity>Create/Update/Read/Page`; `Read` uses `from_attributes=True`.
+- Another module may be used only via its service/schemas/errors. Services never import other services.

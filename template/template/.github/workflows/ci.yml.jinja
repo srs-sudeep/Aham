@@ -1,0 +1,276 @@
+{%- macro kit_access() %}{% if repo_layout == 'polyrepo_service' %}
+      - uses: webfactory/ssh-agent@v0.9.0   # read access to the private platform-kit repo (uv sync + docker build)
+        with: { ssh-private-key: "{% raw %}${{ secrets.PLATFORM_KIT_DEPLOY_KEY }}{% endraw %}" }{% endif %}{% endmacro -%}
+{%- set svc_matrix = repo_layout == 'monorepo' -%}
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-{% raw %}${{ github.ref }}{% endraw %}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1"
+  PYTHON_VERSION: "{{ python_version }}"
+
+jobs:
+  # 1) Fast gate: formatting, lint, types, architecture rules (annotated inline on the PR)
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }{{ kit_access() }}
+      - run: uv sync --all-packages
+      - name: Lockfile is up to date
+        run: uv lock --check
+      - name: Ruff lint
+        run: uv run ruff check --output-format=github .
+      - name: Ruff format
+        run: uv run ruff format --check .
+      - name: Pyright
+        run: uv run pyright
+      - name: Architecture / RBAC / layering (dx check)
+        run: uv run dx check --format github
+      - name: Secrets scan
+        uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "{% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}" }
+      - name: Dependency vulnerabilities
+        run: uv export --format requirements-txt --no-hashes > /tmp/req.txt && uvx pip-audit -r /tmp/req.txt --progress-spinner off
+{%- if repo_layout == 'polyrepo_kit' %}
+
+  # 2) The kit is the baseline for every service: test it hard
+  kit-tests:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }{{ kit_access() }}
+      - run: uv sync --all-packages
+      - run: uv run pytest packages/platform-kit/tests --cov=platform_kit --cov-report=term-missing
+
+  # 3) Tag = release. Service repos pin `tag = "vX.Y.Z"` and get bumps via Renovate/Dependabot PRs.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: kit-tests
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: softprops/action-gh-release@v2
+        with: { generate_release_notes: true }
+{%- else %}
+
+  # 2) Which services changed? (shared packages / root config changes => all services)
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      services: {% raw %}${{ steps.affected.outputs.services }}{% endraw %}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, persist-credentials: false }
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }{{ kit_access() }}
+      - run: uv sync --all-packages
+      - id: affected
+        env:
+          BASE_REF: {% raw %}${{ github.base_ref || 'main' }}{% endraw %}
+        run: |
+          if [[ ! "$BASE_REF" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "Invalid base ref: $BASE_REF" >&2
+            exit 1
+          fi
+          echo "services=$(uv run dx affected --json --base "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+
+  # 3) Unit + API tests against real Postgres, with coverage gate
+  test:
+    needs: [quality, plan]
+    if: needs.plan.outputs.services != '[]'
+    runs-on: ubuntu-latest
+{%- if repo_manager == 'none' %}
+    strategy:
+      fail-fast: false
+      matrix:
+        service: {% raw %}${{ fromJson(needs.plan.outputs.services) }}{% endraw %}
+{%- endif %}
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: test }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/test
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, persist-credentials: false }
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }{{ kit_access() }}
+      - run: uv sync --all-packages
+{%- if repo_manager == 'nx' %}
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-audit --no-fund   # commit package-lock.json and switch to `npm ci`
+      - uses: nrwl/nx-set-shas@v4
+      - name: Affected tests (Nx)
+        run: npx nx affected -t test --parallel=1
+{%- elif repo_manager == 'moon' %}
+      - uses: moonrepo/setup-toolchain@v0
+      - name: Affected tests (moon)
+        run: moon ci :test
+{%- else %}
+      - name: Tests + coverage
+        env:
+          SERVICE: {% raw %}${{ matrix.service }}{% endraw %}
+        run: |
+          if [[ ! "$SERVICE" =~ ^[a-z][a-z0-9-]*$ ]]; then
+            echo "Invalid service name: $SERVICE" >&2
+            exit 1
+          fi
+          uv run dx test --service "$SERVICE" --cov
+{%- endif %}
+{%- if svc_matrix %}
+      - name: Kit tests
+        run: uv run pytest packages/platform-kit/tests
+{%- endif %}
+
+  # 4) Property-based API testing from the OpenAPI spec (finds 500s, schema mismatches, auth gaps)
+  api-fuzz:
+    needs: [quality, plan]
+    if: needs.plan.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: {% raw %}${{ fromJson(needs.plan.outputs.services) }}{% endraw %}
+    env:
+      ENV: test
+      DB_AUTO_CREATE: "true"
+      DATABASE_URL: sqlite+aiosqlite:///./fuzz.db
+      KAFKA_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }{{ kit_access() }}
+      - run: uv sync --all-packages
+      - name: Start service
+        env:
+          SERVICE: {% raw %}${{ matrix.service }}{% endraw %}
+        run: |
+          if [[ ! "$SERVICE" =~ ^[a-z][a-z0-9-]*$ ]]; then
+            echo "Invalid service name: $SERVICE" >&2
+            exit 1
+          fi
+          uv run dx run "$SERVICE" --port 8000 --no-reload &
+          for i in $(seq 1 30); do curl -fs localhost:8000/health/live && break; sleep 1; done
+      - name: Schemathesis
+        env:
+          SERVICE: {% raw %}${{ matrix.service }}{% endraw %}
+        run: |
+          TOKEN=$(uv run dx token "$SERVICE" --all)
+          uvx schemathesis run http://localhost:8000/openapi.json -H "Authorization: Bearer $TOKEN" --checks all
+{%- if is_microservices %}
+
+  # 5) Contract check: fail the PR if the OpenAPI spec has breaking changes vs the base branch
+  contract:
+    if: github.event_name == 'pull_request' && needs.plan.outputs.services != '[]'
+    needs: [quality, plan]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: {% raw %}${{ fromJson(needs.plan.outputs.services) }}{% endraw %}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, persist-credentials: false }
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }{{ kit_access() }}
+      - run: uv sync --all-packages
+      - name: OpenAPI head
+        env:
+          SERVICE: {% raw %}${{ matrix.service }}{% endraw %}
+        run: |
+          if [[ ! "$SERVICE" =~ ^[a-z][a-z0-9-]*$ ]]; then
+            echo "Invalid service name: $SERVICE" >&2
+            exit 1
+          fi
+          uv run dx openapi "$SERVICE" -o /tmp/head.json
+      - name: Spec on base branch
+        id: base
+        env:
+          SERVICE: {% raw %}${{ matrix.service }}{% endraw %}
+          BASE_REF: {% raw %}${{ github.base_ref }}{% endraw %}
+        run: |
+          if [[ ! "$BASE_REF" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "Invalid base ref: $BASE_REF" >&2
+            exit 1
+          fi
+          git worktree add /tmp/base "origin/$BASE_REF"
+          cd /tmp/base
+          if uv sync --all-packages && uv run dx openapi "$SERVICE" -o /tmp/base.json; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"   # new service: nothing to compare
+          fi
+      - name: oasdiff breaking changes
+        if: steps.base.outputs.exists == 'true'
+        run: docker run --rm -v /tmp:/specs tufin/oasdiff breaking /specs/base.json /specs/head.json --fail-on ERR
+{%- endif %}
+
+  # 6) The image must build (and its healthcheck must pass)
+  docker:
+    needs: [quality, plan]
+    if: needs.plan.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: {% raw %}${{ fromJson(needs.plan.outputs.services) }}{% endraw %}
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: docker/setup-buildx-action@v3
+{{- kit_access() }}
+{%- if repo_layout == 'polyrepo_service' %}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          tags: {{ project_slug }}-{% raw %}${{ matrix.service }}{% endraw %}:ci
+          load: true
+          ssh: default
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+{%- else %}
+      - name: Validate service name
+        env:
+          SERVICE: {% raw %}${{ matrix.service }}{% endraw %}
+        run: |
+          if [[ ! "$SERVICE" =~ ^[a-z][a-z0-9-]*$ ]]; then
+            echo "Invalid service name: $SERVICE" >&2
+            exit 1
+          fi
+          echo "DOCKERFILE=services/$SERVICE/Dockerfile" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG={{ project_slug }}-$SERVICE:ci" >> "$GITHUB_ENV"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: {% raw %}${{ env.DOCKERFILE }}{% endraw %}
+          tags: {% raw %}${{ env.IMAGE_TAG }}{% endraw %}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+{%- endif %}
+{%- endif %}

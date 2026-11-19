@@ -1,0 +1,63 @@
+"""Business rules for $module_human: the only layer that decides what is allowed.
+
+No FastAPI here. Signal problems by raising the errors in `errors.py`; platform_kit
+turns them into the standard error envelope with the right status code.
+
+Each write use-case ends in exactly one `commit()`, so a half-applied change is
+never persisted.
+"""
+
+import uuid
+
+from .errors import ${Entity}NameTakenError, ${Entity}NotFoundError
+from .models import $Entity
+from .repository import ${Entity}Repository
+from .schemas import ${Entity}Create, ${Entity}Page, ${Entity}Read, ${Entity}Update
+
+
+class ${Entity}Service:
+    def __init__(self, repo: ${Entity}Repository) -> None:
+        self.repo = repo
+
+    async def create(self, data: ${Entity}Create) -> ${Entity}Read:
+        if await self.repo.get_by_name(data.name) is not None:
+            raise ${Entity}NameTakenError(detail=f"name={data.name!r} is already taken")
+        created = await self.repo.add($Entity(**data.model_dump()))
+        await self.repo.commit()
+        return ${Entity}Read.model_validate(created)
+
+    async def get(self, ${entity}_id: uuid.UUID) -> ${Entity}Read:
+        return ${Entity}Read.model_validate(await self._require(${entity}_id))
+
+    async def list(self, *, offset: int = 0, limit: int = 50) -> ${Entity}Page:
+        rows = await self.repo.list(offset=offset, limit=limit)
+        return ${Entity}Page(
+            items=[${Entity}Read.model_validate(row) for row in rows],
+            offset=offset,
+            limit=limit,
+        )
+
+    async def update(self, ${entity}_id: uuid.UUID, data: ${Entity}Update) -> ${Entity}Read:
+        ${entity} = await self._require(${entity}_id)
+        changes = data.model_dump(exclude_unset=True)
+        new_name = changes.get("name")
+        if (
+            new_name is not None
+            and new_name != ${entity}.name
+            and await self.repo.get_by_name(new_name) is not None
+        ):
+            raise ${Entity}NameTakenError(detail=f"name={new_name!r} is already taken")
+        for field, value in changes.items():
+            setattr(${entity}, field, value)
+        await self.repo.commit()
+        return ${Entity}Read.model_validate(${entity})
+
+    async def delete(self, ${entity}_id: uuid.UUID) -> None:
+        await self.repo.delete(await self._require(${entity}_id))
+        await self.repo.commit()
+
+    async def _require(self, ${entity}_id: uuid.UUID) -> $Entity:
+        found = await self.repo.get(${entity}_id)
+        if found is None:
+            raise ${Entity}NotFoundError(detail=f"${entity}_id={${entity}_id}")
+        return found

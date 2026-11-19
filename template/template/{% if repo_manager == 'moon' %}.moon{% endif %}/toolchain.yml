@@ -1,0 +1,2 @@
+$schema: "https://moonrepo.dev/schemas/toolchain.json"
+# Python itself is managed by uv (.python-version); moon only orchestrates tasks + affected detection.

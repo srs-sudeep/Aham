@@ -1,0 +1,8 @@
+---
+description: Error and logging conventions
+globs: ["**/*.py"]
+alwaysApply: false
+---
+- Raise platform_kit errors (NotFoundError, ConflictError, ...) or subclasses; never HTTPException, never `except: pass`.
+- `message` is shown to end users (no internals). `detail=` and kwargs are for developers/logs.
+- `log.info("snake_case_event", key=value)`: no f-strings in log messages, no print, no logging.getLogger, no os.environ.

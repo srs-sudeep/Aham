@@ -1,0 +1,60 @@
+"""Unit tests: the service with an in-memory fake repository. No DB, no HTTP."""
+
+import uuid
+from datetime import UTC, datetime
+
+import pytest
+
+from $package.modules.$module.errors import ${Entity}NameTakenError, ${Entity}NotFoundError
+from $package.modules.$module.models import $Entity
+from $package.modules.$module.schemas import ${Entity}Create
+from $package.modules.$module.service import ${Entity}Service
+
+
+class Fake${Entity}Repository:
+    def __init__(self) -> None:
+        self.rows: dict[uuid.UUID, $Entity] = {}
+        self.commits = 0
+
+    async def add(self, obj: $Entity) -> $Entity:
+        obj.id = obj.id or uuid.uuid4()
+        obj.created_at = obj.updated_at = datetime.now(UTC)
+        self.rows[obj.id] = obj
+        return obj
+
+    async def get(self, id_: uuid.UUID) -> $Entity | None:
+        return self.rows.get(id_)
+
+    async def get_by_name(self, name: str) -> $Entity | None:
+        return next((r for r in self.rows.values() if r.name == name), None)
+
+    async def list(self, *, offset: int = 0, limit: int = 50) -> list[$Entity]:
+        return list(self.rows.values())[offset : offset + limit]
+
+    async def delete(self, obj: $Entity) -> None:
+        self.rows.pop(obj.id, None)
+
+    async def commit(self) -> None:
+        self.commits += 1
+
+
+@pytest.fixture
+def service() -> ${Entity}Service:
+    return ${Entity}Service(Fake${Entity}Repository())  # type: ignore[arg-type]
+
+
+async def test_create_commits_once(service: ${Entity}Service) -> None:
+    created = await service.create(${Entity}Create(name="a"))
+    assert created.name == "a"
+    assert service.repo.commits == 1  # type: ignore[attr-defined]
+
+
+async def test_create_rejects_duplicates(service: ${Entity}Service) -> None:
+    await service.create(${Entity}Create(name="a"))
+    with pytest.raises(${Entity}NameTakenError):
+        await service.create(${Entity}Create(name="a"))
+
+
+async def test_get_missing_raises_not_found(service: ${Entity}Service) -> None:
+    with pytest.raises(${Entity}NotFoundError):
+        await service.get(uuid.uuid4())

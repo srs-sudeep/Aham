@@ -1,0 +1,120 @@
+# ─────────────────────────────────────────────────────────────
+#  FastAPI Platform Template  ·  copier.yml
+#  New project:   uvx copier copy --trust gh:<org>/fastapi-platform-template my-project
+#  Pull updates:  uvx copier update --trust
+# ─────────────────────────────────────────────────────────────
+_min_copier_version: "9.4.0"
+_subdirectory: template
+_answers_file: .copier-answers.yml
+
+project_name:
+  type: str
+  help: Human-readable project name
+  default: My Platform
+
+project_slug:
+  type: str
+  help: Machine name (lowercase, dashes)
+  default: "{{ project_name | lower | replace(' ', '-') }}"
+  validator: >-
+    {% if not (project_slug | regex_search('^[a-z][a-z0-9-]+$')) %}
+    Use lowercase letters, digits and dashes only.
+    {% endif %}
+
+repo_layout:
+  type: str
+  help: What kind of repository is this?
+  choices:
+    "Monorepo (one repo: shared kit + one or many services)": monorepo
+    "Polyrepo SERVICE repo (one service; kit pulled from its own repo)": polyrepo_service
+    "Polyrepo KIT repo (the shared platform-kit that service repos depend on)": polyrepo_kit
+  default: monorepo
+
+architecture:
+  type: str
+  help: Single service (modular monolith) or microservices?
+  when: "{{ repo_layout == 'monorepo' }}"
+  choices:
+    "Modular monolith (one service)": monolith
+    "Microservices (many services)": microservices
+  default: monolith
+
+first_service:
+  type: str
+  help: Name of the first service (lowercase, dashes)
+  default: core-api
+  when: "{{ repo_layout != 'polyrepo_kit' }}"
+  validator: >-
+    {% if not (first_service | regex_search('^[a-z][a-z0-9-]+$')) %}
+    Use lowercase letters, digits and dashes only.
+    {% endif %}
+
+messaging:
+  type: str
+  help: Message broker for async events
+  when: "{{ repo_layout != 'polyrepo_kit' }}"
+  choices:
+    "None (HTTP only)": none
+    "Kafka (FastStream + transactional outbox)": kafka
+  default: none
+
+repo_manager:
+  type: str
+  help: Task runner / repo manager (the built-in `dx` CLI always works too)
+  when: "{{ repo_layout == 'monorepo' }}"
+  choices:
+    "None, use the built-in dx CLI": none
+    "Nx": nx
+    "moon": moon
+  default: none
+
+kit_git_url:
+  type: str
+  help: >-
+    Git URL of your platform-kit repo. Use https://... (CI token) or ssh://git@host/org/repo.git
+    (deploy key; also used by the Docker build). uv does not accept the scp form git@host:org/repo.
+  when: "{{ repo_layout == 'polyrepo_service' }}"
+  default: "https://github.com/your-org/platform-kit.git"
+
+kit_version:
+  type: str
+  help: platform-kit git tag to pin
+  when: "{{ repo_layout == 'polyrepo_service' }}"
+  default: "v0.1.0"
+
+python_version:
+  type: str
+  default: "3.12"
+  choices: ["3.12", "3.13"]
+
+ai_tools:
+  type: str
+  help: AI coding tools to generate config for
+  multiselect: true
+  choices:
+    Claude Code: claude
+    Cursor: cursor
+  default: [claude, cursor]
+
+# ── derived (not asked) ──────────────────────────────────────
+is_microservices:
+  type: bool
+  when: false
+  default: "{{ repo_layout == 'polyrepo_service' or architecture == 'microservices' }}"
+
+has_kit_source:
+  type: bool
+  when: false
+  default: "{{ repo_layout != 'polyrepo_service' }}"
+
+_tasks:
+  # Only on first copy — `copier update` must not re-scaffold or re-init git.
+  - command: "uv sync --all-packages --no-install-project"
+    when: "{{ _copier_operation == 'copy' }}"
+  - command: "uv run dx new-service {{ first_service }} --with-example"
+    when: "{{ _copier_operation == 'copy' and repo_layout != 'polyrepo_kit' }}"
+  - command: "uv sync --all-packages"
+  - command: "uv run ruff format --quiet . && uv run ruff check --fix --quiet . || true"
+    when: "{{ _copier_operation == 'copy' }}"
+  - command: "git init -q -b main && git add -A && uv run pre-commit install"
+    when: "{{ _copier_operation == 'copy' }}"

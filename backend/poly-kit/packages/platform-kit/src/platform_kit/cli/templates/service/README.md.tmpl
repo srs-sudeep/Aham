@@ -1,0 +1,13 @@
+# $service
+
+| What | Command |
+|---|---|
+| Run locally (reload) | `uv run dx run $service` |
+| Add a feature module | `uv run dx new-module $service <plural_name>` |
+| Tests | `uv run dx test --service $service` |
+| Lint + structure | `uv run dx lint --service $service` |
+| Permission matrix | `uv run dx permissions $service` |
+| New migration | `uv run dx db revision $service -m "add x"` |
+| Dev token | `uv run dx token $service --all` |
+
+Port: **$port**. Docs: http://localhost:$port/docs

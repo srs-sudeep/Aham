@@ -1,0 +1,8 @@
+"""Service entrypoint. Keep this file tiny: everything is wired by platform_kit.create_app."""
+
+from platform_kit import create_app
+
+from $package.permissions import ROLE_PERMISSIONS
+from $package.settings import settings
+
+app = create_app(settings=settings, package="$package", role_permissions=ROLE_PERMISSIONS)

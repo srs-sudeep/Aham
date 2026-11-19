@@ -1,0 +1,21 @@
+"""How this module's service is built for one request.
+
+The router depends only on `${Entity}ServiceDep`, so it never sees the session or the
+repository; swapping the data source means changing this file alone.
+"""
+
+from typing import Annotated
+
+from fastapi import Depends
+
+from platform_kit.db import SessionDep
+
+from .repository import ${Entity}Repository
+from .service import ${Entity}Service
+
+
+def get_${entity}_service(session: SessionDep) -> ${Entity}Service:
+    return ${Entity}Service(${Entity}Repository(session))
+
+
+${Entity}ServiceDep = Annotated[${Entity}Service, Depends(get_${entity}_service)]

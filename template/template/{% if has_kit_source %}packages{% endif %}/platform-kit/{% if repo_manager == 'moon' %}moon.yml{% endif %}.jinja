@@ -1,0 +1,10 @@
+language: python
+layer: library
+
+tasks:
+  lint:
+    command: uv run ruff check packages/platform-kit
+    options: { runFromWorkspaceRoot: true }
+  test:
+    command: uv run pytest packages/platform-kit/tests
+    options: { runFromWorkspaceRoot: true }

@@ -1,0 +1,8 @@
+---
+description: Testing conventions
+globs: ["**/tests/**/*.py"]
+alwaysApply: false
+---
+- API tests use the `client` and `auth(...)` fixtures; cover success, 401, 403, 404 envelope (`error.code`, `request_id`), 422 `fields`.
+- Unit tests test the service with a fake repository: no DB, no HTTP.
+- Never delete or skip `tests/test_architecture.py`.

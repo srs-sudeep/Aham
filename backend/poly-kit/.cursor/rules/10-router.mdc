@@ -1,0 +1,9 @@
+---
+description: Rules for endpoint files
+globs: ["**/modules/*/router.py"]
+alwaysApply: false
+---
+- `router = SecureRouter(prefix="/kebab-plural", tags=["kebab-plural"])`. Never APIRouter/FastAPI.
+- Every route: `async def`, `permission=Permission(Resource.X, Action.Y)` (or PUBLIC with a reason), `summary="..."`, return type annotation.
+- Body ≤ 6 statements: parse → `await svc.method(...)` → return a schema. No queries, no business rules, no try/except.
+- Inject the service via `<Entity>ServiceDep` from `dependencies.py`. Never import repository/models/sqlalchemy here.

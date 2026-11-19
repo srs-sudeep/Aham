@@ -1,0 +1,11 @@
+# Baseline: changes need a platform lead. Replace the team handle.
+/.github/                     @your-org/platform-leads
+/pyproject.toml               @your-org/platform-leads
+/.pre-commit-config.yaml      @your-org/platform-leads
+/AGENTS.md                    @your-org/platform-leads
+/packages/platform-kit/       @your-org/platform-leads
+/packages/contracts/          @your-org/platform-leads
+/CLAUDE.md                    @your-org/platform-leads
+/.claude/                     @your-org/platform-leads
+/.cursor/                     @your-org/platform-leads
+**/permissions.py             @your-org/platform-leads

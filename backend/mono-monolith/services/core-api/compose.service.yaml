@@ -1,0 +1,24 @@
+# Merged with the root compose.yaml by `dx up`. Paths are relative to the repository root.
+services:
+  core-api:
+    build:
+      context: .
+      dockerfile: services/core-api/Dockerfile
+    image: ${REGISTRY:-local}/my-platform-core-api:${TAG:-dev}
+    env_file:
+      - path: services/core-api/.env
+        required: false
+    environment:
+      SERVICE_NAME: core-api
+      ENV: ${ENV:-dev}
+      DATABASE_URL: postgresql+asyncpg://app:app@postgres:5432/core_api
+      SERVICE_URLS: '${SERVICE_URLS:-{}}'
+      KAFKA_ENABLED: "false"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      OTEL_ENDPOINT: http://jaeger:4317
+    ports:
+      - "8001:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped

@@ -1,0 +1,10 @@
+---
+description: Project architecture rules (always on)
+alwaysApply: true
+---
+Follow @AGENTS.md exactly. It is the single source of truth for structure, RBAC, errors, logging and tests.
+
+- Create modules only with `uv run dx new-module <service> <name>`; never hand-create module files.
+- Never edit `packages/platform-kit`, `.github/` or the root `pyproject.toml`.
+- After editing, run `uv run dx check <file>` and fix every reported code before continuing.
+- Definition of done: `uv run dx fmt && uv run dx lint --service <s> && uv run dx test --service <s>`.

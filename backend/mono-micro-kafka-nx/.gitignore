@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage*.xml
+htmlcov/
+.env
+**/.env
+*.db
+node_modules/
+.nx/
+.moon/cache/
+.claude/settings.local.json
+.DS_Store
+.idea/
