@@ -25,6 +25,63 @@ Think of it as a **factory floor for SaaS apps**: the building, power, and secur
 
 ---
 
+## Tech stack
+
+Logos below are the main building blocks. The tables list the concrete packages each generated project uses.
+
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=python,fastapi,postgres,redis,docker,react,ts,vite,tailwind,nodejs&perline=10" alt="Python FastAPI Postgres Redis Docker React TypeScript Vite Tailwind Node" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Copier-template-blue?style=for-the-badge" alt="Copier" />
+  <img src="https://img.shields.io/badge/uv-Python_packaging-DE5FE9?style=for-the-badge" alt="uv" />
+  <img src="https://img.shields.io/badge/SQLAlchemy-2_async-D71F00?style=for-the-badge" alt="SQLAlchemy" />
+  <img src="https://img.shields.io/badge/Alembic-migrations-grey?style=for-the-badge" alt="Alembic" />
+  <img src="https://img.shields.io/badge/TanStack-Router_%2B_Query-FF4154?style=for-the-badge" alt="TanStack" />
+  <img src="https://img.shields.io/badge/Zod-schemas-3E67B1?style=for-the-badge" alt="Zod" />
+  <img src="https://img.shields.io/badge/pnpm-workspaces-F69220?style=for-the-badge" alt="pnpm" />
+  <img src="https://img.shields.io/badge/Docusaurus-docs-3ECC5F?style=for-the-badge" alt="Docusaurus" />
+</p>
+
+### Backend (API)
+
+| Area | Choices |
+|---|---|
+| Language / runtime | **Python ≥ 3.12**, [**uv**](https://docs.astral.sh/uv/) workspaces |
+| HTTP | [**FastAPI**](https://fastapi.tiangolo.com/) + Uvicorn |
+| Data | [**SQLAlchemy 2**](https://www.sqlalchemy.org/) (async) · [**Alembic**](https://alembic.sqlalchemy.org/) · [**PostgreSQL**](https://www.postgresql.org/) · [**Redis**](https://redis.io/) (SaaS) |
+| Validation / settings | **Pydantic** / Pydantic Settings |
+| Auth & SaaS | JWT (local IdP) · refresh cookies · RBAC · tenancy · entitlements · optional **Stripe** |
+| Messaging (optional) | **Kafka** + FastStream + transactional outbox |
+| Quality | **Ruff** · **Pyright** · **pytest** · **pre-commit** · `dx` CLI |
+| Run / ship | **Docker Compose** · service images (migrations on start) |
+
+Baseline library: in-repo **`platform-kit`** (RBAC, errors, DB, middleware, SaaS helpers).
+
+### Frontend (web app)
+
+| Area | Choices |
+|---|---|
+| Language / runtime | **TypeScript** · **Node ≥ 20** · [**pnpm**](https://pnpm.io/) workspaces |
+| App shell | [**Vite 6**](https://vitejs.dev/) · [**React 19**](https://react.dev/) |
+| Routing / data | [**TanStack Router**](https://tanstack.com/router) · [**TanStack Query**](https://tanstack.com/query) · TanStack Table |
+| Forms / schema | **react-hook-form** · [**Zod**](https://zod.dev/) |
+| UI | [**Tailwind CSS 4**](https://tailwindcss.com/) · shadcn-style primitives via **`@aham/ui-kit`** |
+| i18n | **i18next** / react-i18next (`en` / `ja`) |
+| Mocks / tests | [**MSW**](https://mswjs.io/) · **Vitest** · Testing Library · **Playwright** |
+| Quality | ESLint · Prettier · `pnpm dx check` |
+
+### Template & docs
+
+| Area | Choices |
+|---|---|
+| Project generator | [**Copier**](https://copier.readthedocs.io/) (`stack=backend` \| `frontend`) |
+| Docs site | [**Docusaurus**](https://docusaurus.io/) + Mermaid (HLA / LLD) |
+| Optional repo managers | **Nx** or **moon** (backend micro layouts) |
+
+---
+
 ## What you can open on day one
 
 ```mermaid
