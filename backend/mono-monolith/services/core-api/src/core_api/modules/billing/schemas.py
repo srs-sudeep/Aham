@@ -35,3 +35,12 @@ class SubscriptionOut(BaseModel):
     grace_until: datetime | None
     features: dict[str, bool]
     quotas: dict[str, int]
+
+
+class CheckoutRequest(BaseModel):
+    tenant_id: UUID
+    plan_code: str
+
+
+class CheckoutResponse(BaseModel):
+    checkout_url: str

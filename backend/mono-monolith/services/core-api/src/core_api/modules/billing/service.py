@@ -231,3 +231,9 @@ class BillingService:
             status=row.status,
             grace_until=row.grace_until,
         )
+
+    async def create_checkout(self, tenant_id: UUID, plan_code: str) -> str:
+        return await self.payment.create_checkout(tenant_id, plan_code)
+
+    async def handle_stripe_webhook(self, headers: dict[str, str], body: bytes) -> None:
+        await self.payment.handle_webhook(headers, body)

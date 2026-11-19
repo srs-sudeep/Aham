@@ -53,7 +53,7 @@ protected_paths = [
   ".cursor",
 ]
 module_required = ["router", "schemas", "service", "repository", "models", "dependencies"]
-module_optional = ["errors", "events", "constants"]
+module_optional = ["errors", "events", "constants", "phase2", "scim_router"]
 max_route_statements = 6
 ignore = []
 

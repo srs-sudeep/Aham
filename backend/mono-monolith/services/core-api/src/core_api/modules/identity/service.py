@@ -127,6 +127,21 @@ class IdentityService:
             raise InvalidCredentialsError() from exc
         if user.status == "disabled":
             raise UserDisabledError()
+        if user.mfa_enabled:
+            from core_api.modules.identity.schemas import MfaRequiredResponse
+            from platform_kit.mfa import require_totp
+            from sqlalchemy import select
+
+            from core_api.modules.identity.models import UserMfa
+
+            if not body.mfa_code:
+                token = secrets.token_urlsafe(24)
+                await self.redis.set(f"mfa_pending:{token}", str(user.id), ex=300)
+                return MfaRequiredResponse(mfa_token=token)  # type: ignore[return-value]
+            mfa = await self.repo.session.scalar(select(UserMfa).where(UserMfa.user_id == user.id))
+            if mfa is None or not mfa.confirmed:
+                raise InvalidCredentialsError(detail="mfa not configured")
+            require_totp(mfa.totp_secret, body.mfa_code)
         memberships = await self.repo.list_memberships(user.id)
         if not memberships:
             raise TenantRequiredError(detail="user has no tenant memberships")

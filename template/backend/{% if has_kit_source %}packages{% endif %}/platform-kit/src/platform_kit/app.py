@@ -39,10 +39,18 @@ def discover_routers(package: str) -> list[SecureRouter]:
             except ModuleNotFoundError as exc:
                 if exc.name != f"{base}.{optional}":
                     raise
-        router = getattr(importlib.import_module(f"{base}.router"), "router", None)
+        mod = importlib.import_module(f"{base}.router")
+        router = getattr(mod, "router", None)
         if not isinstance(router, SecureRouter):
             raise RuntimeError(f"{base}.router must define `router = SecureRouter(...)`")
         routers.append(router)
+        # Optional extra routers in the same module file (e.g. SCIM alongside auth)
+        extra = getattr(mod, "extra_routers", None)
+        if extra:
+            for er in extra:
+                if not isinstance(er, SecureRouter):
+                    raise RuntimeError(f"{base}.router.extra_routers must be SecureRouter instances")
+                routers.append(er)
     return routers
 
 
@@ -127,6 +135,7 @@ def create_app(
     app.state.token_issuer = None
     app.state.entitlements = None
     app.state.audit = None
+    app.state.api_key_lookup = None  # async (raw: str) -> Principal; set by identity module
     app.state.health_checks = {"database": db.ping, **(extra_health_checks or {})}
 
     register_error_handlers(app, settings)

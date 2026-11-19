@@ -19,7 +19,8 @@ Baseline: **platform-kit** + `dx check` (structure, RBAC, layering, plus MEM/ASY
 
 Local IdP (access + refresh), Redis, multi-tenant memberships, org switcher, DB roles/permissions,
 enterprise-shaped audit, plans/features/quotas with `require_feature` / `require_quota`, ManualProvider.
-Phase-2 ports (stubs): SSO/SAML/OIDC, SCIM, Stripe `PaymentProvider`, API keys.
+Phase 2 (implemented): per-tenant OIDC SSO, SCIM 2.0 Users, Stripe Checkout/webhooks,
+API keys (`aham_…` / `X-API-Key`), TOTP MFA.
 
 ```bash
 uv run dx new-saas <service>          # monolith: identity + billing modules

@@ -18,6 +18,59 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    mfa_code: str | None = None
+
+
+class MfaRequiredResponse(BaseModel):
+    requires_mfa: bool = True
+    mfa_token: str
+
+
+class MfaEnrollResponse(BaseModel):
+    secret: str
+    provisioning_uri: str
+    recovery_codes: list[str]
+
+
+class MfaConfirmRequest(BaseModel):
+    code: str
+
+
+class SsoStartRequest(BaseModel):
+    tenant_slug: str
+    return_to: str = "/"
+
+
+class SsoStartResponse(BaseModel):
+    authorize_url: str
+
+
+class UpsertOidcConnectionRequest(BaseModel):
+    issuer: str | None = None
+    client_id: str
+    client_secret: str
+    authorize_url: str
+    token_url: str
+    userinfo_url: str | None = None
+    scopes: str = "openid email profile"
+    enabled: bool = True
+
+
+class CreateApiKeyRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    role: str = "member"
+
+
+class CreateApiKeyResponse(BaseModel):
+    id: UUID
+    name: str
+    prefix: str
+    raw_key: str  # shown once
+
+
+class ScimTokenResponse(BaseModel):
+    prefix: str
+    raw_token: str
 
 
 class SelectTenantRequest(BaseModel):

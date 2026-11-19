@@ -32,6 +32,8 @@ class User(UUIDPrimaryKey, Timestamps, Base):
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="active")  # active | disabled | invited
     token_version: Mapped[int] = mapped_column(Integer, default=0)
+    external_sub: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)  # OIDC/SCIM subject
+    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Role(UUIDPrimaryKey, Timestamps, Base):
@@ -80,7 +82,7 @@ class Invitation(UUIDPrimaryKey, Timestamps, Base):
 
 
 class AuthConnection(UUIDPrimaryKey, Timestamps, Base):
-    """Phase-2 SSO: per-tenant SAML/OIDC connection metadata (unused in v1)."""
+    """Per-tenant SAML/OIDC connection metadata."""
 
     __tablename__ = "auth_connections"
 
@@ -88,6 +90,36 @@ class AuthConnection(UUIDPrimaryKey, Timestamps, Base):
     type: Mapped[str] = mapped_column(String(16))  # saml | oidc
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class UserMfa(UUIDPrimaryKey, Timestamps, Base):
+    __tablename__ = "user_mfa"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, index=True)
+    totp_secret: Mapped[str] = mapped_column(String(64))
+    recovery_hashes: Mapped[list[Any]] = mapped_column(JsonType, default=list)
+    confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ApiKey(UUIDPrimaryKey, Timestamps, Base):
+    __tablename__ = "api_keys"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    prefix: Mapped[str] = mapped_column(String(16), index=True)
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    role_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("roles.id"))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ScimToken(UUIDPrimaryKey, Timestamps, Base):
+    """Per-tenant bearer token for SCIM provisioning (hashed at rest)."""
+
+    __tablename__ = "scim_tokens"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), unique=True, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    prefix: Mapped[str] = mapped_column(String(16))
 
 
 class AuditEventRow(UUIDPrimaryKey, Base):

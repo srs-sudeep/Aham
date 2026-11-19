@@ -1,0 +1,43 @@
+"""SCIM 2.0 Users endpoint (per-tenant bearer token)."""
+
+from __future__ import annotations
+
+from typing import Any
+from uuid import UUID
+
+from fastapi import Request
+
+from core_api.modules.identity.dependencies import IdentityServiceDep
+from platform_kit import PUBLIC, SecureRouter
+from platform_kit.errors import UnauthorizedError
+
+router = SecureRouter(prefix="/scim/v2", tags=["scim"])
+
+
+def _bearer(request: Request) -> str:
+    header = request.headers.get("authorization", "")
+    scheme, _, token = header.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise UnauthorizedError(detail="missing SCIM bearer token")
+    return token
+
+
+@router.post("/Users", permission=PUBLIC, summary="SCIM create/upsert user", status_code=201)
+async def scim_create_user(body: dict[str, Any], svc: IdentityServiceDep, request: Request) -> dict[str, Any]:
+    tenant_id = await svc.resolve_scim_tenant(_bearer(request))
+    return await svc.scim_upsert_user(tenant_id, body)
+
+
+@router.put("/Users/{user_id}", permission=PUBLIC, summary="SCIM replace user")
+async def scim_replace_user(
+    user_id: str, body: dict[str, Any], svc: IdentityServiceDep, request: Request
+) -> dict[str, Any]:
+    tenant_id = await svc.resolve_scim_tenant(_bearer(request))
+    body = {**body, "id": user_id}
+    return await svc.scim_upsert_user(tenant_id, body)
+
+
+@router.delete("/Users/{user_id}", permission=PUBLIC, summary="SCIM deactivate user", status_code=204)
+async def scim_delete_user(user_id: str, svc: IdentityServiceDep, request: Request) -> None:
+    tenant_id = await svc.resolve_scim_tenant(_bearer(request))
+    await svc.scim_deactivate(tenant_id, user_id)

@@ -492,11 +492,11 @@ name = "core-api"
 version = "0.1.0"
 source = { editable = "services/core-api" }
 dependencies = [
-    { name = "platform-kit", extra = ["otel", "saas"] },
+    { name = "platform-kit", extra = ["otel", "saas", "stripe"] },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "platform-kit", extras = ["otel", "saas"], editable = "packages/platform-kit" }]
+requires-dist = [{ name = "platform-kit", extras = ["otel", "saas", "stripe"], editable = "packages/platform-kit" }]
 
 [[package]]
 name = "coverage"
@@ -1271,7 +1271,7 @@ source = { virtual = "." }
 
 [package.dev-dependencies]
 dev = [
-    { name = "platform-kit", extra = ["kafka", "otel", "saas", "testing"] },
+    { name = "platform-kit", extra = ["kafka", "otel", "saas", "stripe", "testing"] },
     { name = "pre-commit" },
     { name = "pyright" },
     { name = "pytest-cov" },
@@ -1286,6 +1286,7 @@ dev = [
     { name = "platform-kit", extras = ["kafka"], editable = "packages/platform-kit" },
     { name = "platform-kit", extras = ["otel"], editable = "packages/platform-kit" },
     { name = "platform-kit", extras = ["saas"], editable = "packages/platform-kit" },
+    { name = "platform-kit", extras = ["stripe"], editable = "packages/platform-kit" },
     { name = "platform-kit", extras = ["testing"], editable = "packages/platform-kit" },
     { name = "pre-commit", specifier = ">=4.0" },
     { name = "pyright", specifier = ">=1.1.390" },
@@ -1580,7 +1581,11 @@ saas = [
     { name = "argon2-cffi" },
     { name = "cryptography" },
     { name = "email-validator" },
+    { name = "pyotp" },
     { name = "redis", extra = ["hiredis"] },
+]
+stripe = [
+    { name = "stripe" },
 ]
 testing = [
     { name = "aiosqlite" },
@@ -1607,16 +1612,18 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pydantic-settings", specifier = ">=2.6" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10" },
+    { name = "pyotp", marker = "extra == 'saas'", specifier = ">=2.9" },
     { name = "pytest", marker = "extra == 'testing'", specifier = ">=8.3" },
     { name = "pytest-asyncio", marker = "extra == 'testing'", specifier = ">=0.24" },
     { name = "redis", extras = ["hiredis"], marker = "extra == 'redis'", specifier = ">=5.0" },
     { name = "redis", extras = ["hiredis"], marker = "extra == 'saas'", specifier = ">=5.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
+    { name = "stripe", marker = "extra == 'stripe'", specifier = ">=11.0" },
     { name = "structlog", specifier = ">=24.4" },
     { name = "tenacity", specifier = ">=9.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
-provides-extras = ["otel", "kafka", "redis", "saas", "testing"]
+provides-extras = ["otel", "kafka", "redis", "saas", "stripe", "testing"]
 
 [[package]]
 name = "platformdirs"
@@ -1836,6 +1843,15 @@ wheels = [
 [package.optional-dependencies]
 crypto = [
     { name = "cryptography" },
+]
+
+[[package]]
+name = "pyotp"
+version = "2.12.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/70/d7/fe43d6cfd1e80081a374c612df6b6555205a7ab761fdd6ba6e30435fd963/pyotp-2.12.1.tar.gz", hash = "sha256:8d0c4192f3c5d1b1a8792df23b9d8acbb7e70abd2b160962af55c5700edbd236", size = 27480, upload-time = "2026-11-19T05:06:24.189Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/d5/ca399f55b474357c42b8d0ee1c0222a22e6f88bbf4588130b75737c3b73b/pyotp-2.12.1-py3-none-any.whl", hash = "sha256:2f65978d0a0afe5588ec960c810cbb974ba1957ffbf29775d8d4e1b2d4b8984c", size = 17026, upload-time = "2026-11-19T05:06:22.922Z" },
 ]
 
 [[package]]
@@ -2103,6 +2119,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/48/bb/3d8757f21e9a53d9035c9eb039a777047139a16bfdbedfc7a58241c3d914/starlette-1.10.0.tar.gz", hash = "sha256:b8399098d4c1e3522734f7235dc79b1fc967f96cf139c81e0fa30479e0685f9b", size = 2734356, upload-time = "2026-10-24T15:04:12.342Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/88/2e/947cfe02def9371c07cd5bf5b6b61c829e9aecb9904db02a66cfafbc1eec/starlette-1.10.0-py3-none-any.whl", hash = "sha256:478c0ab3b4ced6e82719849c118fa406f0278a3499c1a898cd15cd31bdc38ce4", size = 80571, upload-time = "2026-10-24T15:04:10.371Z" },
+]
+
+[[package]]
+name = "stripe"
+version = "17.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a8/ec/09fcf4d5a21aa23974470ab7a0f58e1011dec23effce4b6eaf3b103be1b3/stripe-17.1.0.tar.gz", hash = "sha256:767b8e0f350b2b00fae7f8fbe7e28d4c215aac23529c833f0e77ec20c5f3bb48", size = 1670474, upload-time = "2026-11-19T03:49:33.134Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/96/ee86b1748e0ff130474ac042cbeb683ea15ef210948a86bdbd5e73dbf8df/stripe-17.1.0-py3-none-any.whl", hash = "sha256:c8089bacd9f7d95b62e3f4c0fc6cb5dc719eb09b9d09c6ff330800d36bf8b6eb", size = 2690745, upload-time = "2026-11-19T03:49:30.546Z" },
 ]
 
 [[package]]

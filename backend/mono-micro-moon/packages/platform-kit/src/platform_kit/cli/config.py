@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 DEFAULT_REQUIRED = ["router", "schemas", "service", "repository", "models", "dependencies"]
-DEFAULT_OPTIONAL = ["errors", "events", "constants"]
+DEFAULT_OPTIONAL = ["errors", "events", "constants", "phase2", "scim_router"]
 
 
 @dataclass(frozen=True)

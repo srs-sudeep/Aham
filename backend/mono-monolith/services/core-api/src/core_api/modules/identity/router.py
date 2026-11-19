@@ -11,22 +11,36 @@ from core_api.modules.identity.dependencies import IdentityServiceDep
 from core_api.modules.identity.schemas import (
     AcceptInviteRequest,
     AuditEventOut,
+    CreateApiKeyRequest,
+    CreateApiKeyResponse,
     DisableUserRequest,
     InviteRequest,
     LoginRequest,
+    MfaConfirmRequest,
+    MfaEnrollResponse,
+    MfaRequiredResponse,
     RegisterRequest,
+    ScimTokenResponse,
     SelectTenantRequest,
+    SsoStartRequest,
+    SsoStartResponse,
     SwitchTenantRequest,
     TenantMembership,
     TenantSelectionResponse,
     TokenResponse,
+    UpsertOidcConnectionRequest,
 )
 from core_api.permissions import Resource
 from platform_kit import PUBLIC, Action, Permission, SecureRouter
 from platform_kit.rate_limit import client_ip, rate_limit
 from platform_kit.security import CurrentPrincipal
 
+# Ensure Phase 2 methods are attached to IdentityService
+import core_api.modules.identity.phase2 as _phase2  # noqa: F401
+from core_api.modules.identity.scim_router import router as scim_router
+
 router = SecureRouter(prefix="/auth", tags=["auth"])
+extra_routers = [scim_router]
 
 
 def _login_key(request: Request) -> str:
@@ -52,7 +66,7 @@ async def register(body: RegisterRequest, svc: IdentityServiceDep, request: Requ
 )
 async def login(
     body: LoginRequest, svc: IdentityServiceDep, request: Request
-) -> TokenResponse | TenantSelectionResponse:
+) -> TokenResponse | TenantSelectionResponse | MfaRequiredResponse:
     return await svc.login(body, ip=client_ip(request))
 
 
@@ -130,3 +144,73 @@ async def export_audit(
     limit: int = 100,
 ) -> list[AuditEventOut]:
     return await svc.export_audit(UUID(principal.tid), since=since, until=until, action=action, limit=min(limit, 1000))
+
+
+@router.post("/mfa/enroll", permission=Permission(Resource.IDENTITY_USER, Action.UPDATE), summary="Enroll TOTP MFA")
+async def mfa_enroll(svc: IdentityServiceDep, principal: CurrentPrincipal) -> MfaEnrollResponse:
+    return await svc.enroll_mfa(UUID(principal.sub))
+
+
+@router.post("/mfa/confirm", permission=Permission(Resource.IDENTITY_USER, Action.UPDATE), summary="Confirm TOTP MFA")
+async def mfa_confirm(body: MfaConfirmRequest, svc: IdentityServiceDep, principal: CurrentPrincipal) -> dict[str, bool]:
+    await svc.confirm_mfa(UUID(principal.sub), body.code)
+    return {"ok": True}
+
+
+@router.post("/mfa/complete", permission=PUBLIC, summary="Complete login after MFA challenge")
+async def mfa_complete(body: dict, svc: IdentityServiceDep, request: Request) -> TokenResponse:
+    return await svc.complete_mfa(str(body["mfa_token"]), str(body["code"]), ip=client_ip(request))
+
+
+@router.post("/sso/start", permission=PUBLIC, summary="Start per-tenant OIDC login")
+async def sso_start(body: SsoStartRequest, svc: IdentityServiceDep) -> SsoStartResponse:
+    return await svc.sso_start(body.tenant_slug, body.return_to)
+
+
+@router.get("/sso/callback", permission=PUBLIC, summary="OIDC callback")
+async def sso_callback(code: str, state: str, svc: IdentityServiceDep, request: Request) -> TokenResponse:
+    return await svc.sso_callback(code, state, ip=client_ip(request))
+
+
+@router.put(
+    "/sso/oidc",
+    permission=Permission(Resource.IDENTITY_TENANT, Action.UPDATE),
+    summary="Configure tenant OIDC connection",
+)
+async def upsert_oidc(
+    body: UpsertOidcConnectionRequest, svc: IdentityServiceDep, principal: CurrentPrincipal
+) -> dict[str, bool]:
+    await svc.upsert_oidc_connection(UUID(principal.tid), body)
+    return {"ok": True}
+
+
+@router.post(
+    "/api-keys",
+    permission=Permission(Resource.IDENTITY_USER, Action.CREATE),
+    summary="Create API key",
+    status_code=201,
+)
+async def create_api_key(
+    body: CreateApiKeyRequest, svc: IdentityServiceDep, principal: CurrentPrincipal
+) -> CreateApiKeyResponse:
+    return await svc.create_api_key(UUID(principal.tid), body.name, body.role)
+
+
+@router.delete(
+    "/api-keys/{key_id}",
+    permission=Permission(Resource.IDENTITY_USER, Action.DELETE),
+    summary="Revoke API key",
+)
+async def revoke_api_key(key_id: UUID, svc: IdentityServiceDep, principal: CurrentPrincipal) -> dict[str, bool]:
+    await svc.revoke_api_key(UUID(principal.tid), key_id)
+    return {"ok": True}
+
+
+@router.post(
+    "/scim-token",
+    permission=Permission(Resource.IDENTITY_USER, Action.CREATE),
+    summary="Issue per-tenant SCIM bearer token",
+    status_code=201,
+)
+async def issue_scim_token(svc: IdentityServiceDep, principal: CurrentPrincipal) -> ScimTokenResponse:
+    return await svc.issue_scim_token(UUID(principal.tid))

@@ -65,6 +65,15 @@ class ServiceSettings(BaseSettings):
     rate_limit_login: int = 10
     rate_limit_window_seconds: int = 60
 
+    # MFA / SSO / Stripe (Phase 2)
+    mfa_issuer: str = "Aham"
+    oidc_redirect_uri: str | None = None  # e.g. http://localhost:8001/api/v1/auth/sso/callback
+    stripe_api_key: SecretStr | None = None
+    stripe_webhook_secret: SecretStr | None = None
+    stripe_success_url: str = "http://localhost:3000/billing/success"
+    stripe_cancel_url: str = "http://localhost:3000/billing/cancel"
+    stripe_price_by_plan: dict[str, str] = Field(default_factory=dict)  # plan_code -> price_id
+
     # inter-service http
     service_urls: dict[str, str] = Field(default_factory=dict)
     http_timeout_seconds: float = 5.0

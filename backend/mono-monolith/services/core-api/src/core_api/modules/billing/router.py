@@ -4,10 +4,20 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from fastapi import Request
+from fastapi.responses import PlainTextResponse
+
 from core_api.modules.billing.dependencies import BillingServiceDep
-from core_api.modules.billing.schemas import ActivateSubscriptionRequest, OverrideRequest, PlanOut, SubscriptionOut
+from core_api.modules.billing.schemas import (
+    ActivateSubscriptionRequest,
+    CheckoutRequest,
+    CheckoutResponse,
+    OverrideRequest,
+    PlanOut,
+    SubscriptionOut,
+)
 from core_api.permissions import Resource
-from platform_kit import Action, Permission, SecureRouter
+from platform_kit import PUBLIC, Action, Permission, SecureRouter
 from platform_kit.security import CurrentPrincipal
 
 router = SecureRouter(prefix="/billing", tags=["billing"])
@@ -62,3 +72,20 @@ async def cancel(body: ActivateSubscriptionRequest, svc: BillingServiceDep) -> S
 )
 async def override(body: OverrideRequest, svc: BillingServiceDep) -> SubscriptionOut:
     return await svc.set_override(body)
+
+
+@router.post(
+    "/checkout",
+    permission=Permission(Resource.BILLING_SUBSCRIPTION, Action.CREATE),
+    summary="Create Stripe Checkout session (when Stripe is configured)",
+)
+async def checkout(body: CheckoutRequest, svc: BillingServiceDep) -> CheckoutResponse:
+    url = await svc.create_checkout(body.tenant_id, body.plan_code)
+    return CheckoutResponse(checkout_url=url)
+
+
+@router.post("/webhooks/stripe", permission=PUBLIC, summary="Stripe webhook")
+async def stripe_webhook(request: Request, svc: BillingServiceDep) -> PlainTextResponse:
+    body = await request.body()
+    await svc.handle_stripe_webhook(dict(request.headers), body)
+    return PlainTextResponse("ok")

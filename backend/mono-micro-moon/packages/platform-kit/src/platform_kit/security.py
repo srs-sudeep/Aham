@@ -209,8 +209,22 @@ def _claim_str_list(value: Any, claim: str) -> list[str]:
 
 
 async def get_current_principal(request: Request) -> Principal:
+    # API keys: Authorization: Bearer aham_... or X-API-Key
+    api_key = request.headers.get("x-api-key")
     header = request.headers.get("authorization", "")
     scheme, _, token = header.partition(" ")
+    if api_key or (scheme.lower() == "bearer" and token.startswith("aham_")):
+        raw = api_key or token
+        lookup = getattr(request.app.state, "api_key_lookup", None)
+        if lookup is None:
+            raise UnauthorizedError(detail="API keys are not enabled")
+        principal = await lookup(raw)
+        user_id_var.set(principal.sub)
+        if principal.tid:
+            tenant_id_var.set(principal.tid)
+        auth_token_var.set(raw)
+        structlog.contextvars.bind_contextvars(user_id=principal.sub, tenant_id=principal.tid, kind="api_key")
+        return principal
     if scheme.lower() != "bearer" or not token:
         raise UnauthorizedError(detail="missing bearer token")
     verifier: TokenVerifier = request.app.state.token_verifier

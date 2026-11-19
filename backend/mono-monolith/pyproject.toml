@@ -23,6 +23,7 @@ dev = [
   "platform-kit[kafka]",
   "platform-kit[otel]",
   "platform-kit[saas]",
+  "platform-kit[stripe]",
   "pytest-cov>=6.0",
   "ruff>=0.8",
   "pyright>=1.1.390",
@@ -54,7 +55,7 @@ protected_paths = [
   ".cursor",
 ]
 module_required = ["router", "schemas", "service", "repository", "models", "dependencies"]
-module_optional = ["errors", "events", "constants"]
+module_optional = ["errors", "events", "constants", "phase2", "scim_router"]
 max_route_statements = 6
 ignore = []
 

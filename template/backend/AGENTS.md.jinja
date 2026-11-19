@@ -46,7 +46,8 @@ another module may be used only through its `service`, `schemas` or `errors` · 
 - Tenancy: roles live on **memberships**, not on the global user. Tokens carry `tid`; never trust a client-supplied tenant id.
 - Isolation ≠ authorization: use `TenantScopedMixin` + Postgres RLS (`platform_kit.tenancy.enable_rls_sql`) on domain tables; fail closed on tenant mismatch.
 - Entitlements: gate paid features with `require_feature("…")` / `require_quota("…")` — never call a payment provider on the hot path. ManualProvider activates plans; Stripe is a phase-2 `PaymentProvider`.
-- Audit: append-only (`/auth/audit`); never store passwords/tokens in payloads. SSO/SCIM/API-keys are phase-2 ports in `platform_kit.providers`.
+- Audit: append-only (`/auth/audit`); never store passwords/tokens in payloads.
+- Phase 2: OIDC SSO (`/auth/sso/*`), SCIM (`/scim/v2/Users`), API keys (`aham_…` / `X-API-Key`), TOTP MFA, Stripe (`/billing/checkout`, `/billing/webhooks/stripe`).
 
 ## Endpoints & RBAC (mandatory)
 
