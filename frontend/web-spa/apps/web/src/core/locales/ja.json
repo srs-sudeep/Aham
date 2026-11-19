@@ -25,10 +25,21 @@
   },
   "login": {
     "title": "サインイン",
-    "subtitle": "ローカル開発用のモックログイン",
-    "email": "メール",
+    "subtitle": "勤務先のメールアドレス、または組織の SSO を使用してください。",
+    "devSubtitle": "ローカル開発用のログイン",
+    "email": "メールアドレス",
+    "password": "パスワード",
     "submit": "続行",
-    "hint": "カタログ権限を持つモックユーザーで入ります"
+    "devHint": "カタログ権限を持つモックユーザーを使用します",
+    "failed": "サインインに失敗しました。もう一度お試しください。",
+    "chooseTenant": "組織を選択してください",
+    "mfaCode": "認証コード",
+    "verify": "確認",
+    "useSso": "SSO でサインイン",
+    "usePassword": "メールアドレスとパスワードを使用",
+    "tenantSlug": "組織 ID",
+    "continueSso": "SSO に進む",
+    "ssoFailed": "シングルサインオンが完了しませんでした。もう一度お試しください。"
   },
   "home": {
     "title": "ダッシュボード",

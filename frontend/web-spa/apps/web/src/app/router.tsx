@@ -55,11 +55,14 @@ const publicAuthRoutes: AnyRoute[] = authRoutes.map((def) =>
     path: def.path,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TanStack RouteComponent vs lazy wrappers
     component: withSuspense(def.component) as any,
-    validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({
+    validateSearch: (search: Record<string, unknown>): { redirect?: string; sso?: string } => ({
       redirect:
-        typeof search.redirect === "string" && search.redirect.startsWith("/")
+        typeof search.redirect === "string" &&
+        search.redirect.startsWith("/") &&
+        !search.redirect.startsWith("//")
           ? search.redirect
           : undefined,
+      sso: search.sso === "1" || search.sso === 1 ? "1" : undefined,
     }),
     beforeLoad: ({ context }: { context: RouterContext }) => {
       if (context.auth.token) throw redirect({ to: "/" });

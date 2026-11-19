@@ -25,10 +25,21 @@
   },
   "login": {
     "title": "Sign in",
-    "subtitle": "Dev login for local development",
+    "subtitle": "Use your work email, or your organization's SSO.",
+    "devSubtitle": "Dev login for local development",
     "email": "Email",
+    "password": "Password",
     "submit": "Continue",
-    "hint": "Uses a mock principal with catalog permissions"
+    "devHint": "Uses a mock principal with catalog permissions",
+    "failed": "Sign-in failed. Please try again.",
+    "chooseTenant": "Choose an organization",
+    "mfaCode": "Authentication code",
+    "verify": "Verify",
+    "useSso": "Sign in with SSO",
+    "usePassword": "Use email and password",
+    "tenantSlug": "Organization ID",
+    "continueSso": "Continue to SSO",
+    "ssoFailed": "Single sign-on did not complete. Please try again."
   },
   "home": {
     "title": "Dashboard",

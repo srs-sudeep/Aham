@@ -9,6 +9,9 @@ export type { StoredPreferences } from "./preferences/storage";
 export { createI18n, useTranslation } from "./i18n/createI18n";
 export type { ResourceMap } from "./i18n/createI18n";
 export { AuthProvider, useAuth, Can } from "./auth/AuthProvider";
+export { sessionStore } from "./auth/session";
+export type { Session } from "./auth/session";
+export { decodeJwtPayload, principalFromAccessToken } from "./auth/jwt";
 export { hasPermission } from "./auth/types";
 export type { Action, Permission, Principal } from "./auth/types";
 

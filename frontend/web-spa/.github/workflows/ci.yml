@@ -5,8 +5,17 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "22"
+  # Total JS shipped (entry + lazy chunks), in bytes.
+  JS_BUDGET_BYTES: "900000"
 
 jobs:
   quality:
@@ -15,6 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -32,6 +42,57 @@ jobs:
       - run: pnpm build
       - name: Bundle budget
         run: |
-          SIZE=$(wc -c < apps/web/dist/assets/*.js | awk '{s+=$1} END {print s}')
-          echo "JS bytes: $SIZE"
-          test "$SIZE" -lt 900000
+          SIZE=$(cat apps/web/dist/assets/*.js | wc -c | tr -d ' ')
+          echo "JS bytes: $SIZE (budget $JS_BUDGET_BYTES)"
+          test "$SIZE" -lt "$JS_BUDGET_BYTES"
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Mock service worker
+        run: pnpm --filter "./apps/web" mocks:init
+      - name: Playwright browsers
+        run: pnpm --filter "./apps/web" exec playwright install --with-deps chromium
+      - name: Smoke e2e (Vite + MSW, dev auth)
+        run: pnpm --filter "./apps/web" e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: web:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Container serves the SPA and deep links
+        run: |
+          docker run -d --name web -p 8080:8080 web:ci
+          for i in $(seq 1 20); do curl -fs localhost:8080/healthz && break; sleep 1; done
+          curl -fs localhost:8080/ | grep -q '<div id="root">'
+          curl -fs localhost:8080/catalog/items | grep -q '<div id="root">'
+          curl -fsI localhost:8080/ | grep -qi 'x-content-type-options: nosniff'

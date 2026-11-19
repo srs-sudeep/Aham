@@ -79,9 +79,25 @@ which runs:
   console.log(`Wrote ${API_TYPES_OUT}`);
 }
 
+/** Claude Code sends the tool call as JSON on stdin: `{ tool_input: { file_path } }`. */
+function hookFilePath(): string {
+  if (process.env.DX_HOOK_FILE) return process.env.DX_HOOK_FILE;
+  if (process.stdin.isTTY) return "";
+  try {
+    const payload = JSON.parse(fs.readFileSync(0, "utf8") || "{}") as {
+      tool_input?: { file_path?: unknown; path?: unknown; notebook_path?: unknown };
+    };
+    const input = payload.tool_input ?? {};
+    const file = input.file_path ?? input.path ?? input.notebook_path;
+    return typeof file === "string" ? file : "";
+  } catch {
+    return "";
+  }
+}
+
 function runHook(root: string, kind: string | undefined): void {
   if (kind === "pre") {
-    const file = process.env.DX_HOOK_FILE ?? "";
+    const file = hookFilePath();
     if (file && process.env.DX_ALLOW_BASELINE !== "1" && isProtectedPath(root, file)) {
       console.error(`FE-CORE001 ${RULES["FE-CORE001"]}: ${file}`);
       process.exit(2);

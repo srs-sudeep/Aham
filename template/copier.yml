@@ -112,9 +112,18 @@ python_version:
 # ── frontend-only ────────────────────────────────────────────
 api_base_url:
   type: str
-  help: Default API base URL for the SPA (Vite env)
+  help: Default API base URL for the SPA, including the API prefix (Vite env)
   when: "{{ stack == 'frontend' }}"
-  default: "http://localhost:8001"
+  default: "http://localhost:8001/api/v1"
+
+auth_mode:
+  type: str
+  help: How the SPA signs in
+  when: "{{ stack == 'frontend' }}"
+  choices:
+    "SaaS backend (platform-kit identity: password/SSO, refresh cookie, tenant switch)": saas
+    "Dev mock principal (UI-only, pair with MSW mocks)": dev
+  default: saas
 
 default_locale:
   type: str

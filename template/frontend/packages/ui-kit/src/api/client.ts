@@ -50,28 +50,62 @@ export class ApiError extends Error {
 export type ApiClientOptions = {
   baseUrl: string;
   getToken?: () => string | null;
+  /** Sent as `X-Tenant-ID`. Leave unset when the tenant lives in the token (platform-kit `tid`). */
   getTenantId?: () => string | null;
   getRequestId?: () => string;
+  /** `"include"` when the API sets cookies (e.g. the httpOnly refresh token on another origin). */
+  credentials?: RequestCredentials;
+  /**
+   * Obtain a fresh access token after a 401 (e.g. POST /auth/refresh with the refresh cookie).
+   * Return null when the session cannot be renewed. Concurrent 401s share one refresh call.
+   */
+  refresh?: () => Promise<string | null>;
+  /** Paths that must never trigger `refresh` (login, refresh itself, ...). */
+  skipRefresh?: (path: string) => boolean;
   onUnauthorized?: (error: ApiError) => void;
 };
 
 export function createApiClient(options: ApiClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/$/, "");
+  let inflightRefresh: Promise<string | null> | null = null;
 
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  function refreshOnce(): Promise<string | null> {
+    if (!options.refresh) return Promise.resolve(null);
+    inflightRefresh ??= options
+      .refresh()
+      .catch(() => null)
+      .finally(() => {
+        inflightRefresh = null;
+      });
+    return inflightRefresh;
+  }
+
+  async function send(path: string, init: RequestInit, token: string | null | undefined) {
     const headers = new Headers(init.headers);
     headers.set("Accept", "application/json");
     if (init.body && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
-    const token = options.getToken?.();
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const tenantId = options.getTenantId?.();
     if (tenantId) headers.set("X-Tenant-ID", tenantId);
     const requestId = options.getRequestId?.() ?? crypto.randomUUID();
     headers.set("X-Request-ID", requestId);
+    const res = await fetch(`${baseUrl}${path}`, {
+      credentials: options.credentials,
+      ...init,
+      headers,
+    });
+    return { res, requestId };
+  }
 
-    const res = await fetch(`${baseUrl}${path}`, { ...init, headers });
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    let { res, requestId } = await send(path, init, options.getToken?.());
+
+    if (res.status === 401 && options.refresh && !options.skipRefresh?.(path)) {
+      const renewed = await refreshOnce();
+      if (renewed) ({ res, requestId } = await send(path, init, renewed));
+    }
 
     if (!res.ok) {
       let body: unknown;

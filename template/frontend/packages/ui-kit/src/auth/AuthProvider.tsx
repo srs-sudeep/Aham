@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { sessionStore } from "./session";
 import { hasPermission, type Permission, type Principal } from "./types";
 
 type AuthContextValue = {
@@ -10,40 +19,34 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const TOKEN_KEY = "aham.auth.token";
-const PRINCIPAL_KEY = "aham.auth.principal";
 
-function loadSession(): { token: string | null; principal: Principal | null } {
-  if (typeof window === "undefined") return { token: null, principal: null };
-  const token = window.localStorage.getItem(TOKEN_KEY);
-  const raw = window.localStorage.getItem(PRINCIPAL_KEY);
-  if (!token || !raw) return { token: null, principal: null };
-  try {
-    return { token, principal: JSON.parse(raw) as Principal };
-  } catch {
-    return { token: null, principal: null };
-  }
-}
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const initial = loadSession();
-  const [token, setToken] = useState<string | null>(initial.token);
-  const [principal, setPrincipal] = useState<Principal | null>(initial.principal);
+export function AuthProvider({
+  children,
+  onLogout,
+}: {
+  children: ReactNode;
+  /** Server-side sign-out (e.g. revoke the refresh cookie). Runs before local state is cleared. */
+  onLogout?: () => void | Promise<void>;
+}) {
+  const session = useSyncExternalStore(sessionStore.subscribe, sessionStore.get, sessionStore.get);
+  const onLogoutRef = useRef(onLogout);
+  onLogoutRef.current = onLogout;
 
   const setSession = useCallback((nextToken: string | null, nextPrincipal: Principal | null) => {
-    setToken(nextToken);
-    setPrincipal(nextPrincipal);
-    if (!nextToken || !nextPrincipal) {
-      window.localStorage.removeItem(TOKEN_KEY);
-      window.localStorage.removeItem(PRINCIPAL_KEY);
-      return;
-    }
-    window.localStorage.setItem(TOKEN_KEY, nextToken);
-    window.localStorage.setItem(PRINCIPAL_KEY, JSON.stringify(nextPrincipal));
+    sessionStore.set(
+      nextToken && nextPrincipal ? { token: nextToken, principal: nextPrincipal } : null,
+    );
   }, []);
 
-  const logout = useCallback(() => setSession(null, null), [setSession]);
+  const logout = useCallback(() => {
+    const remote = onLogoutRef.current?.();
+    const clear = () => sessionStore.set(null);
+    if (remote instanceof Promise) void remote.catch(() => undefined).finally(clear);
+    else clear();
+  }, []);
 
+  const principal = session?.principal ?? null;
+  const token = session?.token ?? null;
   const value = useMemo<AuthContextValue>(
     () => ({
       principal,

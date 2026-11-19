@@ -23,6 +23,6 @@ export default defineConfig({
     command: "pnpm vite --port 5173 --host 127.0.0.1",
     url: "http://127.0.0.1:5173",
     reuseExistingServer: !process.env.CI,
-    env: { VITE_USE_MOCKS: "1" },
+    env: { VITE_USE_MOCKS: "1", VITE_AUTH_MODE: "dev" },
   },
 });

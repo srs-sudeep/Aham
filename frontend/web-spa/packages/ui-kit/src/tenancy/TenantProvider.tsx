@@ -35,6 +35,11 @@ export function getStoredTenantId(): string | null {
   }
 }
 
+/** Persist the active tenant outside React (e.g. align it with the token's `tid` before mount). */
+export function setStoredTenantId(id: string | null): void {
+  persist(id);
+}
+
 function persist(id: string | null) {
   if (typeof window === "undefined") return;
   try {
