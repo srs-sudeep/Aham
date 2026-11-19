@@ -1,15 +1,18 @@
 """Extension ports for email, SSO, SCIM, and payments.
 
-v1 used stubs; Phase 2 ships real OIDC / Stripe adapters (see oidc.py, stripe_billing.py).
+Default billing is ManualProvider (no Stripe package required).
+Stripe is opt-in: ``pip/uv install platform-kit[stripe]`` + ``STRIPE_*`` env vars.
 """
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 from platform_kit.oidc import OidcAuthFederator
-from platform_kit.stripe_billing import StripePaymentProvider
+
+if TYPE_CHECKING:
+    from platform_kit.stripe_billing import StripePaymentProvider as StripePaymentProvider
 
 __all__ = [
     "AuthFederator",
@@ -23,6 +26,14 @@ __all__ = [
     "UnsupportedAuthFederator",
     "UnsupportedScimDirectory",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name == "StripePaymentProvider":
+        from platform_kit.stripe_billing import StripePaymentProvider
+
+        return StripePaymentProvider
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class EmailSender(Protocol):
@@ -77,10 +88,13 @@ class PaymentProvider(Protocol):
 
 
 class ManualPaymentProvider:
-    """Admin activates/cancels subscriptions in-app; no external billing."""
+    """Default: admin activates/cancels subscriptions in-app; no card processor."""
 
     async def create_checkout(self, tenant_id: UUID, plan_code: str) -> str:
-        raise NotImplementedError("ManualProvider has no checkout URL — use admin activate API")
+        raise NotImplementedError(
+            "Checkout requires Stripe. Install platform-kit[stripe] and set STRIPE_API_KEY / "
+            "STRIPE_WEBHOOK_SECRET, or use POST /billing/subscription/activate (ManualProvider)."
+        )
 
     async def handle_webhook(self, headers: dict[str, str], body: bytes) -> None:
         return None

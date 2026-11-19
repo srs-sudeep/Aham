@@ -47,7 +47,8 @@ another module may be used only through its `service`, `schemas` or `errors` · 
 - Isolation ≠ authorization: use `TenantScopedMixin` + Postgres RLS (`platform_kit.tenancy.enable_rls_sql`) on domain tables; fail closed on tenant mismatch.
 - Entitlements: gate paid features with `require_feature("…")` / `require_quota("…")` — never call a payment provider on the hot path. ManualProvider activates plans; Stripe is a phase-2 `PaymentProvider`.
 - Audit: append-only (`/auth/audit`); never store passwords/tokens in payloads.
-- Phase 2: OIDC SSO (`/auth/sso/*`), SCIM (`/scim/v2/Users`), API keys (`aham_…` / `X-API-Key`), TOTP MFA, Stripe (`/billing/checkout`, `/billing/webhooks/stripe`).
+- Phase 2: OIDC SSO (`/auth/sso/*`), SCIM (`/scim/v2/Users`), API keys (`aham_…` / `X-API-Key`), TOTP MFA.
+- Billing default is **ManualProvider**. Stripe is optional: install `platform-kit[stripe]` and set `STRIPE_*`.
 
 ## Endpoints & RBAC (mandatory)
 

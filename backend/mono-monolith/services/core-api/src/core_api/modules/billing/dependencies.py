@@ -7,7 +7,8 @@ from fastapi import Depends, Request
 from core_api.modules.billing.repository import BillingRepository
 from core_api.modules.billing.service import BillingService
 from platform_kit.db import SessionDep
-from platform_kit.providers import ManualPaymentProvider, StripePaymentProvider
+from platform_kit.errors import BadRequestError
+from platform_kit.providers import ManualPaymentProvider
 from platform_kit.redis import RedisClient
 
 
@@ -17,12 +18,18 @@ def get_billing_service(session: SessionDep, request: Request) -> BillingService
         raise RuntimeError("SaaS billing requires Redis (PLATFORM_PROFILE=saas, REDIS_URL)")
     settings = request.app.state.settings
     repo = BillingRepository(session)
-    # Build service first with ManualProvider; swap to Stripe when keys are set.
     svc = BillingService(repo, redis, payment=ManualPaymentProvider())
 
     api_key = settings.stripe_api_key.get_secret_value() if settings.stripe_api_key else None
     wh_secret = settings.stripe_webhook_secret.get_secret_value() if settings.stripe_webhook_secret else None
     if api_key and wh_secret:
+        try:
+            from platform_kit.stripe_billing import StripePaymentProvider
+        except ImportError as exc:
+            raise BadRequestError(
+                detail="STRIPE_* is set but the stripe package is missing — "
+                "install with: uv sync --extra stripe / platform-kit[stripe]"
+            ) from exc
 
         async def _activate(tenant_id, plan_code):  # noqa: ANN001
             await svc.activate(tenant_id, plan_code)

@@ -492,11 +492,11 @@ name = "core-api"
 version = "0.1.0"
 source = { editable = "services/core-api" }
 dependencies = [
-    { name = "platform-kit", extra = ["otel", "saas", "stripe"] },
+    { name = "platform-kit", extra = ["otel", "saas"] },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "platform-kit", extras = ["otel", "saas", "stripe"], editable = "packages/platform-kit" }]
+requires-dist = [{ name = "platform-kit", extras = ["otel", "saas"], editable = "packages/platform-kit" }]
 
 [[package]]
 name = "coverage"
@@ -1271,7 +1271,7 @@ source = { virtual = "." }
 
 [package.dev-dependencies]
 dev = [
-    { name = "platform-kit", extra = ["kafka", "otel", "saas", "stripe", "testing"] },
+    { name = "platform-kit", extra = ["kafka", "otel", "saas", "testing"] },
     { name = "pre-commit" },
     { name = "pyright" },
     { name = "pytest-cov" },
@@ -1286,7 +1286,6 @@ dev = [
     { name = "platform-kit", extras = ["kafka"], editable = "packages/platform-kit" },
     { name = "platform-kit", extras = ["otel"], editable = "packages/platform-kit" },
     { name = "platform-kit", extras = ["saas"], editable = "packages/platform-kit" },
-    { name = "platform-kit", extras = ["stripe"], editable = "packages/platform-kit" },
     { name = "platform-kit", extras = ["testing"], editable = "packages/platform-kit" },
     { name = "pre-commit", specifier = ">=4.0" },
     { name = "pyright", specifier = ">=1.1.390" },

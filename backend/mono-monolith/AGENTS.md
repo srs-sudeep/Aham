@@ -33,7 +33,8 @@ another module may be used only through its `service`, `schemas` or `errors` · 
 - Redis required (`REDIS_URL`). Auth: `/auth/login`, `/auth/refresh`, `/auth/switch-tenant` (identity module).
 - Billing: plans/features/quotas via `/billing/*`; gate with `require_feature` / `require_quota`.
 - Tenancy: roles on memberships; JWT `tid`; use `TenantScopedMixin` + RLS on domain tables.
-- Phase 2: OIDC SSO (`/auth/sso/*`), SCIM (`/scim/v2/Users`), API keys, TOTP MFA, Stripe checkout/webhooks.
+- Phase 2: OIDC SSO (`/auth/sso/*`), SCIM (`/scim/v2/Users`), API keys, TOTP MFA.
+- Billing default is ManualProvider. Stripe is optional (`platform-kit[stripe]` + `STRIPE_*` env).
 
 ## Endpoints & RBAC (mandatory)
 

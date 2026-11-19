@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "core-api service"
 requires-python = ">=3.12"
 dependencies = [
-  "platform-kit[otel,saas,stripe]",
+  "platform-kit[otel,saas]",
 ]
 
 [build-system]

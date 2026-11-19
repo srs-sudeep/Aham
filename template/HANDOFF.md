@@ -31,7 +31,7 @@ New `dx check` codes in platform-kit: `MEM001`, `MEM002`, `MEM003`, `CODE001`; b
 - Kit: Redis, rate limit, TokenIssuer/refresh, tenancy+RLS, entitlements (features+quotas), audit, provider ports
 - `dx new-saas` / post-copy tasks scaffold identity + billing
 - Example: `backend/mono-monolith` has identity+billing modules + Redis in compose
-- Phase 2 implemented: OIDC SSO, SCIM Users, Stripe provider, API keys, TOTP MFA
+- Phase 2: OIDC SSO, SCIM Users, API keys, TOTP MFA; Stripe optional (`platform-kit[stripe]`)
 
 ## Next steps
 

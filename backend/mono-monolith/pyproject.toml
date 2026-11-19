@@ -23,7 +23,8 @@ dev = [
   "platform-kit[kafka]",
   "platform-kit[otel]",
   "platform-kit[saas]",
-  "platform-kit[stripe]",
+  # Optional card billing: uncomment to enable Stripe Checkout/webhooks
+  # "platform-kit[stripe]",
   "pytest-cov>=6.0",
   "ruff>=0.8",
   "pyright>=1.1.390",

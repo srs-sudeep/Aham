@@ -77,14 +77,18 @@ async def override(body: OverrideRequest, svc: BillingServiceDep) -> Subscriptio
 @router.post(
     "/checkout",
     permission=Permission(Resource.BILLING_SUBSCRIPTION, Action.CREATE),
-    summary="Create Stripe Checkout session (when Stripe is configured)",
+    summary="Create checkout session (optional Stripe — requires platform-kit[stripe] + STRIPE_*)",
 )
 async def checkout(body: CheckoutRequest, svc: BillingServiceDep) -> CheckoutResponse:
     url = await svc.create_checkout(body.tenant_id, body.plan_code)
     return CheckoutResponse(checkout_url=url)
 
 
-@router.post("/webhooks/stripe", permission=PUBLIC, summary="Stripe webhook")
+@router.post(
+    "/webhooks/stripe",
+    permission=PUBLIC,
+    summary="Stripe webhook (no-op unless Stripe is configured)",
+)
 async def stripe_webhook(request: Request, svc: BillingServiceDep) -> PlainTextResponse:
     body = await request.body()
     await svc.handle_stripe_webhook(dict(request.headers), body)
