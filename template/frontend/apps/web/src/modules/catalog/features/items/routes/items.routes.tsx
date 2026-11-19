@@ -21,5 +21,9 @@ export const itemsRoutes: FeatureRoute[] = [
   },
   { path: "/catalog/items/new", permission: "core-api.item:create", component: ItemFormPage },
   { path: "/catalog/items/$itemId", permission: "core-api.item:read", component: ItemDetailPage },
-  { path: "/catalog/items/$itemId/edit", permission: "core-api.item:update", component: ItemFormPage },
+  {
+    path: "/catalog/items/$itemId/edit",
+    permission: "core-api.item:update",
+    component: ItemFormPage,
+  },
 ];

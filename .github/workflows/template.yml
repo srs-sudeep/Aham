@@ -2,10 +2,23 @@ name: Template
 
 # Guards the Copier template itself: every supported answer combination must generate a
 # project that passes its own checks, and the committed examples must match the template.
+# Docs / README / assets are deployed via Vercel (docs/) — do not burn the matrix on those paths.
 on:
   pull_request:
+    paths:
+      - "template/**"
+      - "scripts/**"
+      - "backend/**/packages/platform-kit/**"
+      - "frontend/web-spa/**"
+      - ".github/workflows/template.yml"
   push:
     branches: [main]
+    paths:
+      - "template/**"
+      - "scripts/**"
+      - "backend/**/packages/platform-kit/**"
+      - "frontend/web-spa/**"
+      - ".github/workflows/template.yml"
 
 permissions:
   contents: read

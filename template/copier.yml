@@ -164,8 +164,12 @@ _tasks:
   # ── backend ────────────────────────────────────────────────
   - command: "uv sync --all-packages --no-install-project"
     when: "{{ stack == 'backend' and _copier_operation == 'copy' }}"
+  # Showcase catalog (categories+items) only on monolith / poly service — not micro layouts
+  # (micro saas already creates identity + billing; a sibling core-api with items pollutes shared metadata).
   - command: "uv run dx new-service {{ first_service }} --with-example"
-    when: "{{ stack == 'backend' and _copier_operation == 'copy' and repo_layout != 'polyrepo_kit' }}"
+    when: "{{ stack == 'backend' and _copier_operation == 'copy' and repo_layout != 'polyrepo_kit' and architecture != 'microservices' }}"
+  - command: "uv run dx new-service {{ first_service }}"
+    when: "{{ stack == 'backend' and _copier_operation == 'copy' and repo_layout == 'monorepo' and architecture == 'microservices' and platform_profile != 'saas' }}"
   - command: "uv run dx new-saas {{ first_service }}"
     when: "{{ stack == 'backend' and _copier_operation == 'copy' and repo_layout != 'polyrepo_kit' and platform_profile == 'saas' and architecture != 'microservices' }}"
   - command: "uv run dx new-service identity --with-saas && uv run dx new-service billing --with-saas"

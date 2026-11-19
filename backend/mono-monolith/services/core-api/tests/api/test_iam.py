@@ -36,29 +36,30 @@ async def test_list_users_and_permission_catalog(client) -> None:
     assert perms.status_code == 200, perms.text
     codes = {p["code"] for p in perms.json()}
     assert "*" in codes
-    assert "core-api.item:create" in codes
+    # Identity resources are always present on SaaS services (do not assume showcase catalog).
+    assert "identity.user:list" in codes
+    assert "identity.role:create" in codes
 
 
 async def test_custom_role_grants_appear_after_refresh(client) -> None:
     admin = await _register(client)
-    # Create a custom role with only item read/list.
     created = await client.post(
         f"{AUTH}/roles",
-        json={"name": "catalog_reader", "permissions": ["core-api.item:read", "core-api.item:list"]},
+        json={
+            "name": "user_reader",
+            "permissions": ["identity.user:list", "identity.user:read"],
+        },
         headers=admin["headers"],
     )
     assert created.status_code == 201, created.text
     role_id = created.json()["id"]
-    assert set(created.json()["permissions"]) == {"core-api.item:read", "core-api.item:list"}
+    assert set(created.json()["permissions"]) == {"identity.user:list", "identity.user:read"}
 
-    # Invite a user into that role and accept.
     invite = await client.post(
         f"{AUTH}/invitations",
-        json={"email": "reader@example.com", "role": "catalog_reader"},
+        json={"email": "reader@example.com", "role": "user_reader"},
         headers=admin["headers"],
     )
-    # Invites may require role to exist as system or tenant — if invite only looks up system roles,
-    # assign via membership update after invite with member role.
     if invite.status_code >= 400:
         invite = await client.post(
             f"{AUTH}/invitations",
@@ -67,19 +68,24 @@ async def test_custom_role_grants_appear_after_refresh(client) -> None:
         )
     assert invite.status_code in (200, 201), invite.text
 
-    # Replace permissions and ensure GET reflects it.
     updated = await client.put(
         f"{AUTH}/roles/{role_id}/permissions",
-        json={"permissions": ["core-api.item:read", "core-api.item:list", "core-api.category:list"]},
+        json={
+            "permissions": [
+                "identity.user:list",
+                "identity.user:read",
+                "identity.permission:list",
+            ]
+        },
         headers=admin["headers"],
     )
     assert updated.status_code == 200, updated.text
-    assert "core-api.category:list" in updated.json()["permissions"]
+    assert "identity.permission:list" in updated.json()["permissions"]
 
     roles = await client.get(f"{AUTH}/roles", headers=admin["headers"])
     assert roles.status_code == 200
     names = {r["name"] for r in roles.json()}
-    assert "admin" in names and "catalog_reader" in names
+    assert "admin" in names and "user_reader" in names
 
 
 async def test_system_role_cannot_be_deleted(client) -> None:

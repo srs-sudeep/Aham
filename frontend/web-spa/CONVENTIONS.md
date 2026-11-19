@@ -72,7 +72,12 @@ export default defineModule({
 export default defineFeature({
   id: "items",
   routes: itemsRoutes, // each route declares `permission`
-  nav: { labelKey: "items.title", to: "/catalog/items", permission: "core-api.item:list", icon: Package },
+  nav: {
+    labelKey: "items.title",
+    to: "/catalog/items",
+    permission: "core-api.item:list",
+    icon: Package,
+  },
   locales: { en, ja },
 });
 ```
