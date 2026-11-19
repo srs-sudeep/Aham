@@ -110,8 +110,18 @@ jobs:
         env: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: test }
         ports: ["5432:5432"]
         options: --health-cmd "pg_isready -U app" --health-interval 5s --health-retries 10
+{%- if platform_profile == 'saas' %}
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-retries 10
+{%- endif %}
     env:
       DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/test
+{%- if platform_profile == 'saas' %}
+      REDIS_URL: redis://localhost:6379/0
+      PLATFORM_PROFILE: saas
+{%- endif %}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0, persist-credentials: false }

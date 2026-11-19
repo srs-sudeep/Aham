@@ -1,0 +1,12 @@
+-- Enable Postgres RLS on tenant-scoped domain tables (run via Alembic after create).
+-- Identity memberships/invitations are filtered in application code; domain tables
+-- (e.g. items) should use TenantScopedMixin + these policies.
+--
+-- Example for items:
+-- SELECT set_config('app.tenant_id', '<uuid>', true);  -- set per request (platform_kit.tenancy)
+
+-- ALTER TABLE items ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE items FORCE ROW LEVEL SECURITY;
+-- CREATE POLICY tenant_isolation ON items
+--   USING (tenant_id::text = current_setting('app.tenant_id', true))
+--   WITH CHECK (tenant_id::text = current_setting('app.tenant_id', true));

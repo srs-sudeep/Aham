@@ -70,11 +70,24 @@ def create_app(
     configure_logging(settings)
     db = Database(settings)
     messaging: Any = None
+    redis: Any = None
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        nonlocal messaging
+        nonlocal messaging, redis
         app.state.http = httpx.AsyncClient(timeout=settings.http_timeout_seconds)
+        if settings.redis_url:
+            from platform_kit.redis import RedisClient
+            from platform_kit.security import TokenIssuer
+
+            redis = RedisClient(settings)
+            await redis.connect()
+            app.state.redis = redis
+            app.state.token_issuer = TokenIssuer(settings, redis)
+            app.state.health_checks["redis"] = redis.ping
+        else:
+            app.state.redis = None
+            app.state.token_issuer = None
         if settings.kafka_enabled:  # importing registers the outbox table before create_all
             from platform_kit.messaging import Messaging
 
@@ -92,6 +105,8 @@ def create_app(
         finally:
             if messaging is not None:
                 await messaging.stop()
+            if redis is not None:
+                await redis.close()
             await app.state.http.aclose()
             await db.dispose()
             log.info("service_stopped")
@@ -108,6 +123,10 @@ def create_app(
     app.state.settings = settings
     app.state.db = db
     app.state.token_verifier = TokenVerifier(settings, role_permissions or {})
+    app.state.redis = None
+    app.state.token_issuer = None
+    app.state.entitlements = None
+    app.state.audit = None
     app.state.health_checks = {"database": db.ping, **(extra_health_checks or {})}
 
     register_error_handlers(app, settings)

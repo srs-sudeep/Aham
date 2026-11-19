@@ -22,6 +22,7 @@ dev = [
   # type-check the kit (a kit-only repo installs no service that would pull them in).
   "platform-kit[kafka]",
   "platform-kit[otel]",
+  "platform-kit[saas]",
   "pytest-cov>=6.0",
   "ruff>=0.8",
   "pyright>=1.1.390",
@@ -36,6 +37,7 @@ layout = "monorepo"
 architecture = "monolith"
 repo_manager = "none"
 messaging = "none"
+platform_profile = "saas"
 python_version = "3.12"
 services_dir = "services"
 # Paths AI agents are blocked from editing (Claude PreToolUse hook). Also listed in CODEOWNERS.

@@ -25,11 +25,19 @@ template/
 
 New `dx check` codes in platform-kit: `MEM001`, `MEM002`, `MEM003`, `CODE001`; broader `ASYNC001`. Tests added in `test_checks.py`.
 
+## SaaS spine (enterprise-informed)
+
+- Copier `platform_profile`: `saas` (default) | `api`
+- Kit: Redis, rate limit, TokenIssuer/refresh, tenancy+RLS, entitlements (features+quotas), audit, provider ports
+- `dx new-saas` / post-copy tasks scaffold identity + billing
+- Example: `backend/mono-monolith` has identity+billing modules + Redis in compose
+- Phase 2 stubs only: SSO, SCIM, Stripe, API keys, MFA
+
 ## Next steps
 
-1. Regenerate backend examples from `./template` with `stack=backend` so `_src_path` points here.
-2. Wire poly-kit git tag for poly-service locally.
-3. Run full backend `uv run dx test` / Docker / Kafka paths (still open from original HANDOFF).
+1. Regenerate remaining backend examples from `./template` with `stack=backend` + `platform_profile=saas` where desired.
+2. Runtime verify: postgres+redis, register/login/switch-tenant, require_feature/quota, RLS IDOR tests.
+3. Run full backend `uv run dx test` / Docker / Kafka paths.
 4. Optional: `stack: full` monorepo running both checkers.
 5. Prefer `pnpm approve-builds --all` once after install (esbuild scripts).
 6. Add stricter ESLint flat config when ready (lint scripts are placeholders today).

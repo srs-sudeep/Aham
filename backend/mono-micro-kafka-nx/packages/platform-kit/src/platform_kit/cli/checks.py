@@ -45,7 +45,12 @@ RULES: dict[str, str] = {
     "CFG001": "Read configuration from settings, not os.environ/os.getenv",
     "HTTP001": "Do not import httpx/requests/aiohttp; use platform_kit.http.ServiceClient",
     "SQL001": "SQL built from an f-string/concatenation: SQL injection risk; use bound parameters",
-    "ASYNC001": "Blocking call inside async def (time.sleep / requests); use the async equivalent",
+    "ASYNC001": "Blocking call inside async def (time.sleep / requests / subprocess); use the async equivalent",
+    # memory / resources / code patterns
+    "MEM001": "Do not create DB engines inside functions; create once at module/lifespan scope",
+    "MEM002": "Do not construct httpx clients inside handlers; use lifespan / ServiceClient",
+    "MEM003": "Module-level mutable list/dict that grows at runtime is a leak risk; use bounded cache or external store",
+    "CODE001": "session.commit()/await session.commit() belongs in the repository layer (BaseRepository.commit)",
 }
 
 ROUTE_VERBS = {"get", "post", "put", "patch", "delete"}
@@ -58,23 +63,29 @@ LAYER_RULES: dict[str, tuple[set[str], tuple[str, ...]]] = {
     "router": ({"repository", "models"}, ("sqlalchemy", "platform_kit.db")),
     "service": ({"router", "dependencies"}, ("fastapi", "starlette")),
     "repository": ({"router", "service", "dependencies", "schemas"}, ("fastapi", "starlette", "pydantic")),
-    "models": (
-        {"router", "service", "repository", "schemas", "dependencies", "events"},
-        ("fastapi", "starlette", "pydantic"),
-    ),
-    "schemas": (
-        {"router", "service", "repository", "models", "dependencies", "events"},
-        ("sqlalchemy", "fastapi", "starlette"),
-    ),
-    "errors": (
-        {"router", "service", "repository", "models", "schemas", "dependencies", "events"},
-        ("fastapi", "starlette", "sqlalchemy"),
-    ),
+    "models": ({"router", "service", "repository", "schemas", "dependencies", "events"}, ("fastapi", "starlette", "pydantic")),
+    "schemas": ({"router", "service", "repository", "models", "dependencies", "events"}, ("sqlalchemy", "fastapi", "starlette")),
+    "errors": ({"router", "service", "repository", "models", "schemas", "dependencies", "events"}, ("fastapi", "starlette", "sqlalchemy")),
     "constants": ({"router", "service", "repository", "models", "schemas", "dependencies", "events", "errors"}, ()),
     "dependencies": ({"router", "events"}, ()),
     "events": ({"router", "dependencies"}, ("fastapi", "starlette")),
 }
 HTTP_LIBS = ("httpx", "requests", "aiohttp", "urllib3")
+BLOCKING_CALLS = (
+    "time.sleep",
+    "requests.get",
+    "requests.post",
+    "requests.request",
+    "requests.put",
+    "requests.patch",
+    "requests.delete",
+    "subprocess.run",
+    "subprocess.call",
+    "subprocess.Popen",
+    "urllib.request.urlopen",
+)
+ENGINE_CTORS = ("create_engine", "create_async_engine", "sqlalchemy.create_engine", "sqlalchemy.ext.asyncio.create_async_engine")
+HTTP_CTORS = ("httpx.Client", "httpx.AsyncClient")
 
 
 @dataclass(frozen=True, order=True)
@@ -214,9 +225,7 @@ def check_router(tree: ast.Module, out: _Collector, max_statements: int) -> None
     for stmt in tree.body:
         if isinstance(stmt, (ast.Assign, ast.AnnAssign)) and isinstance(stmt.value, ast.Call):
             targets = stmt.targets if isinstance(stmt, ast.Assign) else [stmt.target]
-            if any(isinstance(t, ast.Name) and t.id == "router" for t in targets) and _call_name(stmt.value).endswith(
-                "SecureRouter"
-            ):
+            if any(isinstance(t, ast.Name) and t.id == "router" for t in targets) and _call_name(stmt.value).endswith("SecureRouter"):
                 has_router = True
                 missing = [k for k in ("prefix", "tags") if _kw(stmt.value, k) is None]
                 if missing:
@@ -239,11 +248,7 @@ def check_router(tree: ast.Module, out: _Collector, max_statements: int) -> None
                 out.add(fn, "API003", label)
             if fn.returns is None and _kw(dec, "response_model") is None:
                 out.add(fn, "API004", label)
-            body = (
-                fn.body[1:]
-                if (fn.body and isinstance(fn.body[0], ast.Expr) and isinstance(fn.body[0].value, ast.Constant))
-                else fn.body
-            )
+            body = fn.body[1:] if (fn.body and isinstance(fn.body[0], ast.Expr) and isinstance(fn.body[0].value, ast.Constant)) else fn.body
             count = sum(1 for _ in _iter_statements(body))
             if count > max_statements:
                 out.add(fn, "API005", f"{label} has {count} statements (max {max_statements})")
@@ -265,18 +270,25 @@ def check_service_file(tree: ast.Module, out: _Collector) -> None:
 
 def check_general(ctx: FileCtx, tree: ast.AST, out: _Collector) -> None:
     is_settings = ctx.path.name == "settings.py"
+    in_repo = ctx.role == "repository"
 
-    def visit(node: ast.AST, in_async: bool) -> None:
+    def visit(node: ast.AST, in_async: bool, in_function: bool) -> None:
         for child in ast.iter_child_nodes(node):
             child_async = in_async
+            child_fn = in_function
             if isinstance(child, ast.AsyncFunctionDef):
                 child_async = True
-            elif isinstance(child, (ast.FunctionDef, ast.Lambda)):
+                child_fn = True
+            elif isinstance(child, ast.FunctionDef):
                 child_async = False
-            inspect(child, child_async)
-            visit(child, child_async)
+                child_fn = True
+            elif isinstance(child, ast.Lambda):
+                child_async = False
+                child_fn = True
+            inspect(child, child_async, child_fn)
+            visit(child, child_async, child_fn)
 
-    def inspect(node: ast.AST, in_async: bool) -> None:
+    def inspect(node: ast.AST, in_async: bool, in_function: bool) -> None:
         if isinstance(node, ast.Call):
             name = _call_name(node)
             if name == "print":
@@ -287,8 +299,23 @@ def check_general(ctx: FileCtx, tree: ast.AST, out: _Collector) -> None:
                 out.add(node, "CFG001")
             elif name.split(".")[-1] == "text" and node.args and isinstance(node.args[0], (ast.JoinedStr, ast.BinOp)):
                 out.add(node, "SQL001")
-            elif in_async and name in ("time.sleep", "requests.get", "requests.post", "requests.request"):
+            elif in_async and (name in BLOCKING_CALLS or name.endswith(".sleep") and "asyncio" not in name):
                 out.add(node, "ASYNC001", f"`{name}`")
+            elif in_function and (name in ENGINE_CTORS or name.endswith("create_engine") or name.endswith("create_async_engine")):
+                out.add(node, "MEM001", f"`{name}`")
+            elif in_function and name in HTTP_CTORS:
+                # allow inside functions named lifespan/_setup
+                out.add(node, "MEM002", f"`{name}`")
+            elif not in_repo and isinstance(node.func, ast.Attribute) and node.func.attr == "commit":
+                # Flag session.commit / self.session.commit — allow self.repo.commit()
+                recv = node.func.value
+                recv_name = ""
+                if isinstance(recv, ast.Name):
+                    recv_name = recv.id
+                elif isinstance(recv, ast.Attribute):
+                    recv_name = recv.attr
+                if recv_name in {"session", "db", "db_session"} or recv_name.endswith("session"):
+                    out.add(node, "CODE001", f"`{recv_name}.commit()`")
         elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
             if node.value.id == "os" and node.attr == "environ" and not is_settings:
                 out.add(node, "CFG001")
@@ -297,8 +324,17 @@ def check_general(ctx: FileCtx, tree: ast.AST, out: _Collector) -> None:
                 out.add(node, "CFG001")
         elif isinstance(node, ast.ExceptHandler) and len(node.body) == 1 and isinstance(node.body[0], ast.Pass):
             out.add(node, "ERR002")
+        elif isinstance(node, ast.Assign) and not in_function and ctx.role in {"service", "repository"}:
+            # module-level [] or {} used as mutable caches (constants UPPER_CASE allowed)
+            empty_mut = (isinstance(node.value, ast.List) and not node.value.elts) or (
+                isinstance(node.value, ast.Dict) and not node.value.keys
+            )
+            if empty_mut:
+                targets = [t.id for t in node.targets if isinstance(t, ast.Name) and not t.id.isupper()]
+                if targets:
+                    out.add(node, "MEM003", f"`{targets[0]}`")
 
-    visit(tree, False)
+    visit(tree, False, False)
 
 
 def check_module_dirs(service: Service, cfg: DxConfig, only: set[Path] | None, root: Path) -> list[Violation]:
@@ -382,11 +418,7 @@ def run_checks(cfg: DxConfig, paths: Iterable[Path] | None = None, service: str 
         other = all_packages - {svc.package}
         files = sorted(svc.src.rglob("*.py"))
         if only is not None:
-            files = [
-                f
-                for f in files
-                if f.resolve() in only or any(f.resolve().is_relative_to(p) for p in only if p.is_dir())
-            ]
+            files = [f for f in files if f.resolve() in only or any(f.resolve().is_relative_to(p) for p in only if p.is_dir())]
             module_scope = {f.resolve().parent for f in files} | {p for p in only if p.is_dir()}
         else:
             module_scope = None

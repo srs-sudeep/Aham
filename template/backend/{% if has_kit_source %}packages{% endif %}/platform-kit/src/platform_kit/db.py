@@ -47,6 +47,12 @@ class Timestamps:
     )
 
 
+class TenantScopedMixin:
+    """Mark a table as tenant-owned. Pair with Postgres RLS (see platform_kit.tenancy)."""
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(index=True, nullable=False)
+
+
 class Database:
     def __init__(self, settings: ServiceSettings) -> None:
         url = settings.database_url
@@ -84,8 +90,15 @@ class Database:
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
+    from platform_kit.context import tenant_id_var
+    from platform_kit.tenancy import set_tenant_rls
+
     db: Database = request.app.state.db
     async with db.session() as session:
+        request.state.db_session = session
+        tid = tenant_id_var.get()
+        if tid:
+            await set_tenant_rls(session, tid)
         yield session
 
 

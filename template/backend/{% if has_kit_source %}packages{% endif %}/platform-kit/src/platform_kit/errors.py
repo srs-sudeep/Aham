@@ -107,6 +107,18 @@ class ServiceUnavailableError(AppError):
     message = "The service is temporarily unavailable."
 
 
+class RateLimitError(AppError):
+    status_code = 429
+    code = "rate_limited"
+    message = "Too many requests. Please try again later."
+
+
+class PaymentRequiredError(AppError):
+    status_code = 402
+    code = "payment_required"
+    message = "This action requires an active subscription."
+
+
 # ── envelope ────────────────────────────────────────────────────────────────
 def error_body(
     *,

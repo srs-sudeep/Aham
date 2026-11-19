@@ -29,6 +29,12 @@ Import rules: router ↛ repository/models/sqlalchemy · service ↛ fastapi/rou
 another module may be used only through its `service`, `schemas` or `errors` · **services never import each other**
 (use `platform_kit.http.ServiceClient`).
 
+## SaaS spine (platform_profile=saas)
+- Redis required (`REDIS_URL`). Auth: `/auth/login`, `/auth/refresh`, `/auth/switch-tenant` (identity module).
+- Billing: plans/features/quotas via `/billing/*`; gate with `require_feature` / `require_quota`.
+- Tenancy: roles on memberships; JWT `tid`; use `TenantScopedMixin` + RLS on domain tables.
+- Phase-2 ports in `platform_kit.providers`: SSO, SCIM, Stripe, EmailSender stubs.
+
 ## Endpoints & RBAC (mandatory)
 
 This is **route-level RBAC** (permission strings on HTTP routes), not object-level / PBAC.

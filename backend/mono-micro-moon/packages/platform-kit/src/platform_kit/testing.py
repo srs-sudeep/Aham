@@ -18,10 +18,23 @@ def make_token(
     sub: str = "test-user",
     permissions: Iterable[str] = (),
     roles: Iterable[str] = (),
+    tid: str | None = None,
+    ver: int = 0,
+    kind: str = "user",
     expires_in: int = 3600,
 ) -> str:
     now = int(time.time())
-    claims = {"sub": sub, "iat": now, "exp": now + expires_in, "permissions": list(permissions), "roles": list(roles)}
+    claims: dict[str, object] = {
+        "sub": sub,
+        "iat": now,
+        "exp": now + expires_in,
+        "permissions": list(permissions),
+        "roles": list(roles),
+        "ver": ver,
+        "kind": kind,
+    }
+    if tid:
+        claims["tid"] = tid
     if settings.jwt_audience:
         claims["aud"] = settings.jwt_audience
     if settings.jwt_issuer:

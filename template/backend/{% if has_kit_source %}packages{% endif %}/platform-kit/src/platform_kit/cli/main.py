@@ -1,7 +1,8 @@
 """dx: one CLI for every repo, with or without Nx/moon.
 
-    dx new-service <name> [--with-example]   create a service (monorepo) / initialise the repo service (polyrepo)
-    dx new-module <service> <name>           create a feature module (router/schemas/service/repository/...)
+dx new-service <name> [--with-example] [--with-saas]  create a service (monorepo) / initialise the repo service (polyrepo)
+dx new-module <service> <name>           create a feature module (router/schemas/service/repository/...)
+dx new-saas <service>                    install identity + billing SaaS spine modules into a service
     dx check [paths...] [--format github]    structure, RBAC, layering, error/logging rules
     dx watch                                 re-run `dx check` on save (VS Code/Cursor Problems panel)
     dx lint [--service s] [--fix]            ruff + format + pyright + dx check
@@ -243,7 +244,29 @@ def cmd_new_service(cfg: DxConfig, args: argparse.Namespace) -> int:
     if args.with_example:
         new_module(load_config(cfg.root), svc, "items")
         print("dx: added example module 'items'")
+    if args.with_saas:
+        from platform_kit.cli.scaffold import new_saas
+
+        modules = ("identity", "billing")
+        if args.name == "identity":
+            modules = ("identity",)
+        elif args.name == "billing":
+            modules = ("billing",)
+        for path in new_saas(load_config(cfg.root), svc, modules=modules):
+            print(f"  + {path.relative_to(cfg.root)}")
+        print(f"dx: added SaaS modules {modules}")
     print("next: uv sync --all-packages && uv run dx run " + svc.name)
+    return 0
+
+
+def cmd_new_saas(cfg: DxConfig, args: argparse.Namespace) -> int:
+    from platform_kit.cli.scaffold import new_saas
+
+    svc = cfg.get_service(args.service)
+    modules = tuple(args.modules) if args.modules else ("identity", "billing")
+    for path in new_saas(cfg, svc, modules=modules):
+        print(f"  + {path.relative_to(cfg.root)}")
+    print("dx: SaaS spine installed. Set REDIS_URL and PLATFORM_PROFILE=saas.")
     return 0
 
 
@@ -344,7 +367,13 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("new-service", help="scaffold a service")
     s.add_argument("name")
     s.add_argument("--with-example", action="store_true")
+    s.add_argument("--with-saas", action="store_true", help="also install identity + billing modules")
     s.set_defaults(func=cmd_new_service)
+
+    s = sub.add_parser("new-saas", help="install SaaS spine (identity + billing) into a service")
+    s.add_argument("service")
+    s.add_argument("--modules", nargs="+", choices=["identity", "billing"], help="subset of modules")
+    s.set_defaults(func=cmd_new_saas)
 
     s = sub.add_parser("new-module", help="scaffold a feature module")
     s.add_argument("service")

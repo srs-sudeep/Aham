@@ -97,7 +97,13 @@ def new_service(cfg: DxConfig, name: str) -> Service:
         skip, uv_flag, ssh_mount, git_setup = set(), f"--package {name}", "", ""
 
     kafka = cfg.messaging == "kafka"
-    kit_extras = "otel,kafka" if kafka else "otel"
+    saas = cfg.platform_profile == "saas"
+    extras = ["otel"]
+    if kafka:
+        extras.append("kafka")
+    if saas:
+        extras.append("saas")
+    kit_extras = ",".join(extras)
     deps = [f'  "platform-kit[{kit_extras}]",']
     if cfg.layout == "polyrepo_service":
         sources = (
@@ -243,3 +249,84 @@ def _add_resource(service: Service, member: str, value: str) -> None:
     if re.search(rf"^\s+{member}\s*=", text, re.MULTILINE):
         return
     path.write_text(text.replace(marker, f'    {member} = "{value}"\n{marker}', 1), encoding="utf-8")
+
+
+# ── saas spine (identity + billing modules) ───────────────────────────────────
+_SAAS_RESOURCES = (
+    ("IDENTITY_TENANT", "identity.tenant"),
+    ("IDENTITY_USER", "identity.user"),
+    ("IDENTITY_AUDIT", "identity.audit"),
+    ("BILLING_PLAN", "billing.plan"),
+    ("BILLING_SUBSCRIPTION", "billing.subscription"),
+)
+
+
+def new_saas(
+    cfg: DxConfig,
+    service: Service,
+    *,
+    modules: tuple[str, ...] = ("identity", "billing"),
+) -> list[Path]:
+    """Install SaaS spine modules into an existing service."""
+    created: list[Path] = []
+    variables = {"package": service.package, "service": service.name}
+    for name in modules:
+        if name not in ("identity", "billing"):
+            raise SystemExit(f"dx: unknown saas module {name!r}")
+        dest_dir = service.src / "modules" / name
+        if dest_dir.exists():
+            raise SystemExit(f"dx: saas module already exists at {dest_dir}")
+        pack = TEMPLATES / "saas" / name
+        for src in sorted(pack.rglob("*")):
+            if src.is_dir():
+                continue
+            rel = src.name
+            if rel.endswith(".tmpl"):
+                rel = rel[: -len(".tmpl")]
+                content = string.Template(src.read_text(encoding="utf-8")).substitute(variables)
+            else:
+                content = src.read_text(encoding="utf-8")
+            target = dest_dir / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+            created.append(target)
+    resource_map = {
+        "identity": _SAAS_RESOURCES[:3],
+        "billing": _SAAS_RESOURCES[3:],
+    }
+    for name in modules:
+        for member, value in resource_map[name]:
+            _add_resource(service, member, value)
+    _enable_saas_settings(service)
+    _ensure_saas_dependency(service)
+    _normalise(created, cfg.root)
+    return created
+
+
+def _enable_saas_settings(service: Service) -> None:
+    path = service.src / "settings.py"
+    text = path.read_text(encoding="utf-8")
+    if "platform_profile" in text:
+        return
+    addition = (
+        '    platform_profile: str = "saas"\n'
+        '    redis_url: str | None = "redis://localhost:6379/0"\n'
+        '    jwt_issuer: str | None = "https://auth.local"\n'
+        '    jwt_audience: str | None = "api://local"\n'
+    )
+    # Insert before the trailing `settings = Settings()` assignment.
+    if "settings = Settings()" in text:
+        text = text.replace("settings = Settings()", addition + "\n\nsettings = Settings()")
+    else:
+        text += "\n" + addition
+    path.write_text(text, encoding="utf-8")
+
+
+def _ensure_saas_dependency(service: Service) -> None:
+    path = service.path / "pyproject.toml"
+    text = path.read_text(encoding="utf-8")
+    if "platform-kit[saas" in text or "platform-kit[otel,saas" in text:
+        return
+    text = text.replace("platform-kit[otel,kafka]", "platform-kit[otel,kafka,saas]")
+    text = text.replace("platform-kit[otel]", "platform-kit[otel,saas]")
+    path.write_text(text, encoding="utf-8")

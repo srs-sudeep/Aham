@@ -84,17 +84,13 @@ class SecureRouter:
             raise ValueError("SecureRouter prefix must start with '/'")
         if not tags:
             raise ValueError("SecureRouter needs at least one tag")
-        self._router = APIRouter(
-            prefix=prefix, tags=list(tags), dependencies=dependencies or [], responses=_DEFAULT_ERRORS
-        )
+        self._router = APIRouter(prefix=prefix, tags=list(tags), dependencies=dependencies or [], responses=_DEFAULT_ERRORS)
 
     @property
     def api_router(self) -> APIRouter:  # used by create_app only
         return self._router
 
-    def _route(
-        self, method: str, path: str, permission: Permission | _Public, summary: str, kw: dict[str, Any]
-    ) -> Callable[[F], F]:
+    def _route(self, method: str, path: str, permission: Permission | _Public, summary: str, kw: dict[str, Any]) -> Callable[[F], F]:
         if not isinstance(permission, (Permission, _Public)):
             raise TypeError(f"permission must be Permission(...) or PUBLIC, got {permission!r}")
         deps = list(kw.pop("dependencies", None) or [])

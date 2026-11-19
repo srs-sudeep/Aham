@@ -107,7 +107,7 @@ def test_long_endpoint_print_env_and_blocking(repo: Path) -> None:
     router.write_text(
         router.read_text()
         + textwrap.dedent(
-            """
+            '''
             import os, time
 
             @router.get("/fat", permission=PUBLIC, summary="fat")
@@ -115,7 +115,7 @@ def test_long_endpoint_print_env_and_blocking(repo: Path) -> None:
                 print("hi")
                 time.sleep(1)
                 os.getenv("X")
-            """
+            '''
         )
         + body
         + "\n    return {}\n"
@@ -142,7 +142,7 @@ def test_sql_injection_pattern(repo: Path) -> None:
     src = make_service(repo)
     f = src / "modules/items/repository.py"
     # Deliberately injectable SQL: the point of the test is that SQL001 catches it.
-    bad_query = 'def bad(name: str):\n    return text(f"SELECT * FROM t WHERE n = {name}")\n'
+    bad_query = 'def bad(name: str):\n    return text(f"SELECT * FROM t WHERE n = {name}")\n'  # noqa: S608
     f.write_text(f.read_text() + "\n\n" + bad_query)
     assert "SQL001" in codes(repo)
 
@@ -160,3 +160,49 @@ def test_monolith_refuses_second_service(repo: Path) -> None:
     make_service(repo)
     with pytest.raises(SystemExit, match="modular monolith"):
         new_service(load_config(repo), "billing")
+
+
+def test_mem_engine_and_http_client_inside_functions(repo: Path) -> None:
+    src = make_service(repo)
+    f = src / "modules/items/service.py"
+    f.write_text(
+        f.read_text()
+        + textwrap.dedent(
+            """
+
+            def _bad_engine():
+                from sqlalchemy.ext.asyncio import create_async_engine
+                return create_async_engine("sqlite+aiosqlite://")
+
+            async def _bad_client():
+                import httpx
+                return httpx.AsyncClient()
+            """
+        )
+    )
+    found = codes(repo)
+    assert "MEM001" in found
+    assert "MEM002" in found
+
+
+def test_code_session_commit_outside_repository(repo: Path) -> None:
+    src = make_service(repo)
+    f = src / "modules/items/service.py"
+    f.write_text(
+        f.read_text()
+        + textwrap.dedent(
+            """
+
+            async def _bad_commit(self, session):
+                await session.commit()
+            """
+        )
+    )
+    assert "CODE001" in codes(repo)
+
+
+def test_mem_module_level_mutable_cache(repo: Path) -> None:
+    src = make_service(repo)
+    f = src / "modules/items/service.py"
+    f.write_text("_cache = {}\n" + f.read_text())
+    assert "MEM003" in codes(repo)

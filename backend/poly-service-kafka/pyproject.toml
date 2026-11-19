@@ -18,8 +18,8 @@ packages = ["src/core_api"]
 
 [tool.uv.sources]
 # Pin to a TAG. Bump with Renovate/Dependabot; never track a branch.
-platform-kit = { git = "file:///Users/srs/Desktop/Dev/SASS/fastapi-platform-template-and-cases/2-output/poly-kit", subdirectory = "packages/platform-kit", tag = "v0.1.0" }
-contracts = { git = "file:///Users/srs/Desktop/Dev/SASS/fastapi-platform-template-and-cases/2-output/poly-kit", subdirectory = "packages/contracts", tag = "v0.1.0" }
+platform-kit = { path = "../poly-kit/packages/platform-kit" }
+contracts = { path = "../poly-kit/packages/contracts" }
 
 [dependency-groups]
 dev = [

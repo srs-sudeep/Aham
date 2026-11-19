@@ -1,0 +1,53 @@
+from __future__ import annotations
+
+import uuid
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core_api.modules.billing.models import (
+    EntitlementOverride,
+    EntitlementSnapshotRow,
+    Feature,
+    Plan,
+    PlanFeature,
+    Subscription,
+)
+from platform_kit.db import BaseRepository
+
+
+class BillingRepository(BaseRepository[Plan]):
+    model = Plan
+
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session)
+
+    async def get_plan_by_code(self, code: str) -> Plan | None:
+        return await self.session.scalar(select(Plan).where(Plan.code == code))
+
+    async def list_plans(self) -> list[Plan]:
+        return list(await self.session.scalars(select(Plan).order_by(Plan.code)))
+
+    async def plan_features(self, plan_id: uuid.UUID) -> list[tuple[Feature, PlanFeature]]:
+        rows = await self.session.execute(
+            select(Feature, PlanFeature)
+            .join(PlanFeature, PlanFeature.feature_id == Feature.id)
+            .where(PlanFeature.plan_id == plan_id)
+        )
+        return list(rows.all())
+
+    async def get_subscription(self, tenant_id: uuid.UUID) -> Subscription | None:
+        return await self.session.scalar(select(Subscription).where(Subscription.tenant_id == tenant_id))
+
+    async def get_snapshot(self, tenant_id: uuid.UUID) -> EntitlementSnapshotRow | None:
+        return await self.session.scalar(
+            select(EntitlementSnapshotRow).where(EntitlementSnapshotRow.tenant_id == tenant_id)
+        )
+
+    async def list_overrides(self, tenant_id: uuid.UUID) -> list[EntitlementOverride]:
+        return list(
+            await self.session.scalars(select(EntitlementOverride).where(EntitlementOverride.tenant_id == tenant_id))
+        )
+
+    async def get_feature(self, key: str) -> Feature | None:
+        return await self.session.scalar(select(Feature).where(Feature.key == key))

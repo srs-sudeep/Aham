@@ -1,0 +1,349 @@
+"""Identity business logic: register, login, select/switch tenant, invites, audit."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import secrets
+from datetime import UTC, datetime, timedelta
+from uuid import UUID
+
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+
+from core_api.modules.identity.errors import (
+    EmailTakenError,
+    InvalidCredentialsError,
+    InvitationInvalidError,
+    MembershipNotFoundError,
+    SlugTakenError,
+    TenantRequiredError,
+    UserDisabledError,
+)
+from core_api.modules.identity.models import (
+    AuditEventRow,
+    Invitation,
+    Membership,
+    Role,
+    Tenant,
+    User,
+)
+from core_api.modules.identity.repository import IdentityRepository
+from core_api.modules.identity.schemas import (
+    AcceptInviteRequest,
+    AuditEventOut,
+    InviteRequest,
+    LoginRequest,
+    RegisterRequest,
+    TenantMembership,
+    TenantSelectionResponse,
+    TokenResponse,
+)
+from platform_kit.audit import Audit, AuditEvent
+from platform_kit.config import ServiceSettings
+from platform_kit.providers import EmailSender, LoggingEmailSender
+from platform_kit.redis import RedisClient
+from platform_kit.security import TokenIssuer, TokenPair
+
+_ph = PasswordHasher()
+SYSTEM_PERMISSIONS = [
+    ("*", "Superuser (admin)"),
+    ("identity.user:invite", "Invite users"),
+    ("identity.user:disable", "Disable users"),
+    ("identity.audit:read", "Read audit log"),
+    ("billing.subscription:manage", "Manage subscriptions"),
+    ("billing.plan:read", "Read plans"),
+]
+
+
+class IdentityService:
+    def __init__(
+        self,
+        repo: IdentityRepository,
+        settings: ServiceSettings,
+        issuer: TokenIssuer,
+        redis: RedisClient,
+        audit: Audit | None = None,
+        email: EmailSender | None = None,
+    ) -> None:
+        self.repo = repo
+        self.settings = settings
+        self.issuer = issuer
+        self.redis = redis
+        self.audit = audit or Audit()
+        self.email = email or LoggingEmailSender()
+
+    async def seed_system(self) -> None:
+        """Idempotent seed of system roles/permissions (admin, member, viewer)."""
+        from core_api.modules.identity.models import Permission, RolePermission
+
+        existing = await self.repo.get_system_role("admin")
+        if existing:
+            return
+        perm_ids: dict[str, UUID] = {}
+        for code, desc in SYSTEM_PERMISSIONS:
+            p = Permission(code=code, description=desc)
+            self.repo.session.add(p)
+            await self.repo.session.flush()
+            perm_ids[code] = p.id
+        for name, codes in (
+            ("admin", ["*"]),
+            ("member", ["identity.user:invite", "billing.plan:read"]),
+            ("viewer", ["billing.plan:read", "identity.audit:read"]),
+        ):
+            role = Role(name=name, tenant_id=None, is_system=True)
+            self.repo.session.add(role)
+            await self.repo.session.flush()
+            for code in codes:
+                self.repo.session.add(RolePermission(role_id=role.id, permission_id=perm_ids[code]))
+        await self.repo.commit()
+
+    async def register(self, body: RegisterRequest, *, ip: str | None = None) -> TokenResponse:
+        if await self.repo.get_user_by_email(body.email):
+            raise EmailTakenError()
+        if await self.repo.get_tenant_by_slug(body.tenant_slug):
+            raise SlugTakenError()
+        await self.seed_system()
+        admin_role = await self.repo.get_system_role("admin")
+        assert admin_role is not None
+        user = User(email=body.email.lower(), password_hash=_ph.hash(body.password), status="active")
+        tenant = Tenant(slug=body.tenant_slug, name=body.tenant_name, status="active", region="us")
+        self.repo.session.add_all([user, tenant])
+        await self.repo.session.flush()
+        self.repo.session.add(Membership(user_id=user.id, tenant_id=tenant.id, role_id=admin_role.id, status="active"))
+        await self.repo.commit()
+        await self.audit.record("auth.register", actor_id=user.id, tenant_id=tenant.id, ip=ip)
+        return await self._issue_for_membership(user, tenant.id, admin_role)
+
+    async def login(self, body: LoginRequest, *, ip: str | None = None) -> TokenResponse | TenantSelectionResponse:
+        user = await self.repo.get_user_by_email(body.email)
+        if user is None or not user.password_hash:
+            await self.audit.record("auth.login.failure", actor_id=body.email, result="failure", ip=ip)
+            raise InvalidCredentialsError()
+        try:
+            _ph.verify(user.password_hash, body.password)
+        except VerifyMismatchError as exc:
+            await self.audit.record("auth.login.failure", actor_id=user.id, result="failure", ip=ip)
+            raise InvalidCredentialsError() from exc
+        if user.status == "disabled":
+            raise UserDisabledError()
+        memberships = await self.repo.list_memberships(user.id)
+        if not memberships:
+            raise TenantRequiredError(detail="user has no tenant memberships")
+        if len(memberships) == 1:
+            m, tenant, role = memberships[0]
+            await self.audit.record("auth.login.success", actor_id=user.id, tenant_id=tenant.id, ip=ip)
+            return await self._issue_for_membership(user, tenant.id, role)
+        session = secrets.token_urlsafe(32)
+        await self.redis.set(
+            f"login_session:{session}",
+            json.dumps({"sub": str(user.id), "ver": user.token_version}),
+            ex=300,
+        )
+        return TenantSelectionResponse(
+            session_token=session,
+            tenants=[
+                TenantMembership(tenant_id=t.id, slug=t.slug, name=t.name, role=r.name) for _, t, r in memberships
+            ],
+        )
+
+    async def select_tenant(self, session_token: str, tenant_id: UUID, *, ip: str | None = None) -> TokenResponse:
+        raw = await self.redis.get(f"login_session:{session_token}")
+        if not raw:
+            raise InvalidCredentialsError(detail="login session expired")
+        data = json.loads(raw)
+        await self.redis.delete(f"login_session:{session_token}")
+        user = await self.repo.get(UUID(data["sub"]))
+        if user is None:
+            raise InvalidCredentialsError()
+        return await self._switch(user, tenant_id, ip=ip, action="auth.select_tenant")
+
+    async def switch_tenant(self, user_id: UUID, tenant_id: UUID, *, ip: str | None = None) -> TokenResponse:
+        user = await self.repo.get(user_id)
+        if user is None:
+            raise InvalidCredentialsError()
+        return await self._switch(user, tenant_id, ip=ip, action="auth.switch_tenant")
+
+    async def refresh(self, refresh_token: str) -> TokenResponse:
+        sub, tid, ver, family = await self.issuer.rotate_refresh(refresh_token)
+        user = await self.repo.get(UUID(sub))
+        if user is None or user.status == "disabled" or user.token_version != ver:
+            await self.issuer.revoke_family(family)
+            raise InvalidCredentialsError(detail="refresh rejected")
+        role_row = await self.repo.get_membership(user.id, UUID(tid))
+        if role_row is None:
+            raise MembershipNotFoundError()
+        role = await self.repo.session.get(Role, role_row.role_id)
+        assert role is not None
+        pair = await self.issuer.issue_pair(
+            sub=str(user.id),
+            tid=tid,
+            roles=[role.name],
+            permissions=await self._perms(role),
+            ver=user.token_version,
+            family=family,
+        )
+        return _pair_to_response(pair)
+
+    async def logout(self, refresh_token: str | None, user_id: UUID | None) -> None:
+        if refresh_token:
+            await self.issuer.revoke_refresh(refresh_token)
+        if user_id:
+            await self.audit.record("auth.logout", actor_id=user_id)
+
+    async def invite(self, tenant_id: UUID, actor_id: UUID, body: InviteRequest, *, ip: str | None = None) -> str:
+        role = await self.repo.get_system_role(body.role) or await self.repo.get_system_role("member")
+        if role is None:
+            await self.seed_system()
+            role = await self.repo.get_system_role(body.role) or await self.repo.get_system_role("member")
+        assert role is not None
+        raw = secrets.token_urlsafe(32)
+        inv = Invitation(
+            email=body.email.lower(),
+            tenant_id=tenant_id,
+            role_id=role.id,
+            token_hash=_hash(raw),
+            expires_at=datetime.now(UTC) + timedelta(days=7),
+        )
+        self.repo.session.add(inv)
+        await self.repo.commit()
+        await self.email.send(
+            to=body.email,
+            subject="You are invited",
+            body=f"Accept invite with token: {raw}",
+        )
+        await self.audit.record(
+            "identity.invite.create",
+            actor_id=actor_id,
+            tenant_id=tenant_id,
+            target=body.email,
+            ip=ip,
+        )
+        return raw
+
+    async def accept_invite(self, body: AcceptInviteRequest, *, ip: str | None = None) -> TokenResponse:
+        inv = await self.repo.get_invitation_by_hash(_hash(body.token))
+        if inv is None or inv.accepted_at or inv.expires_at < datetime.now(UTC):
+            raise InvitationInvalidError()
+        user = await self.repo.get_user_by_email(inv.email)
+        if user is None:
+            user = User(email=inv.email, password_hash=_ph.hash(body.password), status="active")
+            self.repo.session.add(user)
+            await self.repo.session.flush()
+        elif not user.password_hash:
+            user.password_hash = _ph.hash(body.password)
+            user.status = "active"
+        existing = await self.repo.get_membership(user.id, inv.tenant_id)
+        if existing is None:
+            self.repo.session.add(
+                Membership(user_id=user.id, tenant_id=inv.tenant_id, role_id=inv.role_id, status="active")
+            )
+        inv.accepted_at = datetime.now(UTC)
+        await self.repo.commit()
+        role = await self.repo.session.get(Role, inv.role_id)
+        assert role is not None
+        await self.audit.record("identity.invite.accept", actor_id=user.id, tenant_id=inv.tenant_id, ip=ip)
+        return await self._issue_for_membership(user, inv.tenant_id, role)
+
+    async def disable_user(self, tenant_id: UUID, actor_id: UUID, user_id: UUID) -> None:
+        membership = await self.repo.get_membership(user_id, tenant_id)
+        if membership is None:
+            raise MembershipNotFoundError()
+        user = await self.repo.get(user_id)
+        if user is None:
+            raise MembershipNotFoundError()
+        user.status = "disabled"
+        user.token_version += 1
+        await self.redis.set(f"token_ver:{user.id}", str(user.token_version), ex=60 * 60 * 24 * 365)
+        await self.repo.commit()
+        await self.audit.record(
+            "identity.user.disable",
+            actor_id=actor_id,
+            tenant_id=tenant_id,
+            target=str(user_id),
+        )
+
+    async def list_tenants(self, user_id: UUID) -> list[TenantMembership]:
+        rows = await self.repo.list_memberships(user_id)
+        return [TenantMembership(tenant_id=t.id, slug=t.slug, name=t.name, role=r.name) for _, t, r in rows]
+
+    async def export_audit(
+        self,
+        tenant_id: UUID,
+        *,
+        since: datetime | None,
+        until: datetime | None,
+        action: str | None,
+        limit: int,
+    ) -> list[AuditEventOut]:
+        rows = await self.repo.list_audit(tenant_id=tenant_id, since=since, until=until, action=action, limit=limit)
+        return [
+            AuditEventOut(
+                id=r.id,
+                actor_type=r.actor_type,
+                actor_id=r.actor_id,
+                tenant_id=r.tenant_id,
+                action=r.action,
+                target=r.target,
+                result=r.result,
+                created_at=r.created_at,
+                request_id=r.request_id,
+            )
+            for r in rows
+        ]
+
+    async def write_audit_row(self, event: AuditEvent) -> None:
+        row = AuditEventRow(
+            actor_type=event.actor_type,
+            actor_id=event.actor_id,
+            tenant_id=UUID(event.tenant_id) if event.tenant_id else None,
+            action=event.action,
+            target=event.target,
+            result=event.result,
+            ip=event.ip,
+            user_agent=event.user_agent,
+            payload=event.payload,
+            request_id=event.request_id,
+            created_at=event.created_at,
+        )
+        await self.repo.add_audit(row)
+        await self.repo.commit()
+
+    async def _switch(self, user: User, tenant_id: UUID, *, ip: str | None, action: str) -> TokenResponse:
+        membership = await self.repo.get_membership(user.id, tenant_id)
+        if membership is None:
+            raise MembershipNotFoundError()
+        role = await self.repo.session.get(Role, membership.role_id)
+        assert role is not None
+        await self.audit.record(action, actor_id=user.id, tenant_id=tenant_id, ip=ip)
+        return await self._issue_for_membership(user, tenant_id, role)
+
+    async def _issue_for_membership(self, user: User, tenant_id: UUID, role: Role) -> TokenResponse:
+        perms = await self._perms(role)
+        pair = await self.issuer.issue_pair(
+            sub=str(user.id),
+            tid=tenant_id,
+            roles=[role.name],
+            permissions=perms,
+            ver=user.token_version,
+        )
+        return _pair_to_response(pair)
+
+    async def _perms(self, role: Role) -> list[str]:
+        codes = await self.repo.permissions_for_role(role.id)
+        if "*" in codes:
+            return ["*"]
+        return codes
+
+
+def _pair_to_response(pair: TokenPair) -> TokenResponse:
+    return TokenResponse(
+        access_token=pair.access_token,
+        refresh_token=pair.refresh_token,
+        expires_in=pair.expires_in,
+        tenant_id=UUID(pair.tenant_id) if pair.tenant_id else None,
+    )
+
+
+def _hash(raw: str) -> str:
+    return hashlib.sha256(raw.encode()).hexdigest()

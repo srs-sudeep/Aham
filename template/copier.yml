@@ -68,6 +68,17 @@ messaging:
     "Kafka (FastStream + transactional outbox)": kafka
   default: none
 
+platform_profile:
+  type: str
+  help: >-
+    API-only (JWT verify + RBAC code) or SaaS spine (local IdP, Redis, tenancy,
+    entitlements, audit). Enterprise SSO/SCIM/Stripe are extension ports in saas.
+  when: "{{ stack == 'backend' and repo_layout != 'polyrepo_kit' }}"
+  choices:
+    "SaaS spine (IdP, Redis, tenancy, entitlements)": saas
+    "API only (verify JWT from external IdP)": api
+  default: saas
+
 repo_manager:
   type: str
   help: Task runner / repo manager (the built-in `dx` CLI always works too)
@@ -135,12 +146,21 @@ has_kit_source:
   when: false
   default: "{{ stack == 'backend' and repo_layout != 'polyrepo_service' }}"
 
+is_saas:
+  type: bool
+  when: false
+  default: "{{ stack == 'backend' and platform_profile == 'saas' }}"
+
 _tasks:
   # ── backend ────────────────────────────────────────────────
   - command: "uv sync --all-packages --no-install-project"
     when: "{{ stack == 'backend' and _copier_operation == 'copy' }}"
   - command: "uv run dx new-service {{ first_service }} --with-example"
     when: "{{ stack == 'backend' and _copier_operation == 'copy' and repo_layout != 'polyrepo_kit' }}"
+  - command: "uv run dx new-saas {{ first_service }}"
+    when: "{{ stack == 'backend' and _copier_operation == 'copy' and repo_layout != 'polyrepo_kit' and platform_profile == 'saas' and architecture != 'microservices' }}"
+  - command: "uv run dx new-service identity --with-saas && uv run dx new-service billing --with-saas"
+    when: "{{ stack == 'backend' and _copier_operation == 'copy' and repo_layout == 'monorepo' and architecture == 'microservices' and platform_profile == 'saas' }}"
   - command: "uv sync --all-packages"
     when: "{{ stack == 'backend' }}"
   - command: "uv run ruff format --quiet . && uv run ruff check --fix --quiet . || true"

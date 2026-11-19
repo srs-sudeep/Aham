@@ -1,0 +1,87 @@
+"""Identity request/response schemas."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, Field
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=10, max_length=128)
+    tenant_name: str = Field(min_length=2, max_length=200)
+    tenant_slug: str = Field(min_length=2, max_length=80, pattern=r"^[a-z][a-z0-9-]+$$")
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class SelectTenantRequest(BaseModel):
+    session_token: str
+    tenant_id: UUID
+
+
+class SwitchTenantRequest(BaseModel):
+    tenant_id: UUID
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str | None = None
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str | None = None
+    token_type: str = "bearer"
+    expires_in: int
+    tenant_id: UUID | None = None
+
+
+class TenantSelectionResponse(BaseModel):
+    requires_tenant_selection: bool = True
+    session_token: str
+    tenants: list[TenantMembership]
+
+
+class TenantMembership(BaseModel):
+    tenant_id: UUID
+    slug: str
+    name: str
+    role: str
+
+
+class InviteRequest(BaseModel):
+    email: EmailStr
+    role: str = "member"
+
+
+class AcceptInviteRequest(BaseModel):
+    token: str
+    password: str = Field(min_length=10, max_length=128)
+
+
+class DisableUserRequest(BaseModel):
+    user_id: UUID
+
+
+class AuditExportQuery(BaseModel):
+    since: datetime | None = None
+    until: datetime | None = None
+    action: str | None = None
+    limit: int = Field(default=100, ge=1, le=1000)
+
+
+class AuditEventOut(BaseModel):
+    id: UUID
+    actor_type: str
+    actor_id: str | None
+    tenant_id: UUID | None
+    action: str
+    target: str | None
+    result: str
+    created_at: datetime
+    request_id: str | None

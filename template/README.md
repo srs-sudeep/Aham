@@ -12,8 +12,19 @@ uvx copier update --trust
 
 See the original FastAPI platform docs below. Source tree: [`backend/`](backend/).
 
-Questions: `repo_layout`, `architecture`, `messaging`, `repo_manager`, …  
+Questions: `repo_layout`, `architecture`, `messaging`, `platform_profile` (`saas` | `api`), `repo_manager`, …  
 Baseline: **platform-kit** + `dx check` (structure, RBAC, layering, plus MEM/ASYNC/CODE rules).
+
+### `platform_profile=saas` (default for new backends)
+
+Local IdP (access + refresh), Redis, multi-tenant memberships, org switcher, DB roles/permissions,
+enterprise-shaped audit, plans/features/quotas with `require_feature` / `require_quota`, ManualProvider.
+Phase-2 ports (stubs): SSO/SAML/OIDC, SCIM, Stripe `PaymentProvider`, API keys.
+
+```bash
+uv run dx new-saas <service>          # monolith: identity + billing modules
+docker compose up -d postgres redis
+```
 
 ## Stack: frontend
 

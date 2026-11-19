@@ -28,7 +28,6 @@ from typing import Any, ClassVar
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-
 # This module is what turns HTTPException into the standard envelope, so it has to
 # import the class that services are banned from raising (ruff TID251 / dx check ERR001).
 from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: TID251
@@ -106,6 +105,18 @@ class ServiceUnavailableError(AppError):
     status_code = 503
     code = "service_unavailable"
     message = "The service is temporarily unavailable."
+
+
+class RateLimitError(AppError):
+    status_code = 429
+    code = "rate_limited"
+    message = "Too many requests. Please try again later."
+
+
+class PaymentRequiredError(AppError):
+    status_code = 402
+    code = "payment_required"
+    message = "This action requires an active subscription."
 
 
 # ── envelope ────────────────────────────────────────────────────────────────

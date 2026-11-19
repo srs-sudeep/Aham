@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "{{ first_service }} service"
 requires-python = ">={{ python_version }}"
 dependencies = [
-  "platform-kit[otel{% if messaging == 'kafka' %},kafka{% endif %}]",
+  "platform-kit[otel{% if messaging == 'kafka' %},kafka{% endif %}{% if platform_profile == 'saas' %},saas{% endif %}]",
 {%- if messaging == 'kafka' %}
   "contracts",
 {%- endif %}
@@ -53,6 +53,9 @@ dev = [
   # type-check the kit (a kit-only repo installs no service that would pull them in).
   "platform-kit[kafka]",
   "platform-kit[otel]",
+{%- if platform_profile == 'saas' %}
+  "platform-kit[saas]",
+{%- endif %}
   "pytest-cov>=6.0",
   "ruff>=0.8",
   "pyright>=1.1.390",
@@ -67,6 +70,7 @@ layout = "{{ repo_layout }}"
 architecture = "{{ 'microservices' if is_microservices else 'monolith' }}"
 repo_manager = "{{ repo_manager }}"
 messaging = "{{ messaging }}"
+platform_profile = "{{ platform_profile | default('api') }}"
 python_version = "{{ python_version }}"
 {%- if is_poly_svc %}
 service = "{{ first_service }}"

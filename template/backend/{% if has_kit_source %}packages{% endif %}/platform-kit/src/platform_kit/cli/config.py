@@ -31,6 +31,7 @@ class DxConfig:
     architecture: str = "monolith"  # monolith | microservices
     repo_manager: str = "none"  # none | nx | moon
     messaging: str = "none"  # none | kafka
+    platform_profile: str = "api"  # api | saas
     python_version: str = "3.12"
     services_dir: str = "services"
     service: str | None = None  # polyrepo_service: the single service name

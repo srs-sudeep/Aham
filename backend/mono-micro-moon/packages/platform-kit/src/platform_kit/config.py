@@ -5,7 +5,7 @@ Reading os.environ anywhere else is flagged by `dx check` (CFG001).
 """
 
 from enum import StrEnum
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -46,11 +46,24 @@ class ServiceSettings(BaseSettings):
     db_auto_create: bool = False  # create tables on startup (dev/test only, never prod)
 
     # auth (JWT). Use jwks_url in real environments; jwt_secret only for local dev/tests.
+    # When platform_profile=saas, this service may also *issue* tokens (identity).
     jwt_secret: SecretStr = SecretStr(DEFAULT_JWT_SECRET)
     jwt_algorithm: str = "HS256"
     jwks_url: str | None = None
     jwt_audience: str | None = None
     jwt_issuer: str | None = None
+    access_token_ttl_seconds: int = 900  # 15m
+    refresh_token_ttl_seconds: int = 60 * 60 * 24 * 30  # 30d
+    refresh_cookie_name: str = "refresh_token"
+    refresh_cookie_secure: bool = True
+    refresh_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+    token_delivery: Literal["body", "cookie", "both"] = "both"
+
+    # redis / saas
+    redis_url: str | None = None
+    platform_profile: Literal["api", "saas"] = "api"
+    rate_limit_login: int = 10
+    rate_limit_window_seconds: int = 60
 
     # inter-service http
     service_urls: dict[str, str] = Field(default_factory=dict)
@@ -70,6 +83,9 @@ class ServiceSettings(BaseSettings):
     @model_validator(mode="after")
     def _require_safe_auth_outside_dev(self) -> Self:
         """Refuse to start staging/prod with the public HS256 default or incomplete JWKS config."""
+        if self.platform_profile == "saas" and not self.redis_url and self.env not in (Environment.DEV, Environment.TEST):
+            raise ValueError("REDIS_URL is required for platform_profile=saas outside dev/test")
+
         if self.env in (Environment.DEV, Environment.TEST):
             if self.jwks_url and (not self.jwt_audience or not self.jwt_issuer):
                 raise ValueError(
@@ -84,9 +100,10 @@ class ServiceSettings(BaseSettings):
             errors.append("JWT_SECRET must not use the built-in default outside dev/test")
         if len(secret) < 32:
             errors.append("JWT_SECRET must be at least 32 characters")
-        if not self.jwks_url:
+        # SaaS identity can issue HS256/RS256 locally; other services still prefer JWKS.
+        if not self.jwks_url and self.platform_profile != "saas":
             errors.append("JWKS_URL is required outside dev/test (HS256 is for local use only)")
-        elif not self.jwks_url.startswith("https://"):
+        elif self.jwks_url and not self.jwks_url.startswith("https://"):
             errors.append("JWKS_URL must use https outside dev/test")
         if not self.jwt_audience:
             errors.append("JWT_AUDIENCE is required outside dev/test")
@@ -109,3 +126,7 @@ class ServiceSettings(BaseSettings):
         if self.env == Environment.PROD:
             return False  # never leak internals in prod, whatever the flag says
         return self.is_dev if self.expose_error_details is None else self.expose_error_details
+
+    @property
+    def is_saas(self) -> bool:
+        return self.platform_profile == "saas"

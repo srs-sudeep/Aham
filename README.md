@@ -24,11 +24,13 @@ Pull improvements into an existing project: `uvx copier update --trust`.
 
 | Folder | Shape |
 |---|---|
-| `poly-kit` | Shared platform-kit + contracts |
-| `poly-service-kafka` | Standalone service + Kafka |
-| `mono-monolith` | Monorepo, one service, `dx` only |
+| `poly-kit` | Shared platform-kit + contracts (incl. SaaS helpers) |
+| `poly-service-kafka` | Standalone service + Kafka (pins local `poly-kit`) |
+| `mono-monolith` | Monorepo monolith + **SaaS spine** (identity, billing, Redis) |
 | `mono-micro-kafka-nx` | Monorepo microservices + Kafka + Nx |
 | `mono-micro-moon` | Monorepo microservices + moon |
+
+Copier question `platform_profile=saas` adds Redis, local IdP, tenancy, entitlements (`dx new-saas`).
 
 ## Frontend examples (`frontend/`)
 

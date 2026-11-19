@@ -1,21 +1,22 @@
 """dx: one CLI for every repo, with or without Nx/moon.
 
-dx new-service <name> [--with-example]   create a service (monorepo) / initialise the repo service (polyrepo)
+dx new-service <name> [--with-example] [--with-saas]  create a service (monorepo) / initialise the repo service (polyrepo)
 dx new-module <service> <name>           create a feature module (router/schemas/service/repository/...)
-dx check [paths...] [--format github]    structure, RBAC, layering, error/logging rules
-dx watch                                 re-run `dx check` on save (VS Code/Cursor Problems panel)
-dx lint [--service s] [--fix]            ruff + format + pyright + dx check
-dx fmt                                   ruff format + autofix
-dx test [--service s] [--cov]            pytest per service (isolated processes) + kit tests
-dx run <service> [--port] [--no-reload]  uvicorn with reload
-dx up / down / logs                      docker compose for infra + all services
-dx db upgrade|revision <service> [-m]    alembic per service
-dx affected [--base ref] [--json]        services changed since base (CI matrix)
-dx openapi <service> [-o file]           export OpenAPI spec (contract checks)
-dx permissions <service>                 RBAC matrix: method, path, permission
-dx token <service> [--perm p | --all]    dev-only JWT for manual / schemathesis testing
-dx rules                                 list every rule code with its explanation
-dx hook claude-pre|claude-post           Claude Code hooks (reads JSON on stdin)
+dx new-saas <service>                    install identity + billing SaaS spine modules into a service
+    dx check [paths...] [--format github]    structure, RBAC, layering, error/logging rules
+    dx watch                                 re-run `dx check` on save (VS Code/Cursor Problems panel)
+    dx lint [--service s] [--fix]            ruff + format + pyright + dx check
+    dx fmt                                   ruff format + autofix
+    dx test [--service s] [--cov]            pytest per service (isolated processes) + kit tests
+    dx run <service> [--port] [--no-reload]  uvicorn with reload
+    dx up / down / logs                      docker compose for infra + all services
+    dx db upgrade|revision <service> [-m]    alembic per service
+    dx affected [--base ref] [--json]        services changed since base (CI matrix)
+    dx openapi <service> [-o file]           export OpenAPI spec (contract checks)
+    dx permissions <service>                 RBAC matrix: method, path, permission
+    dx token <service> [--perm p | --all]    dev-only JWT for manual / schemathesis testing
+    dx rules                                 list every rule code with its explanation
+    dx hook claude-pre|claude-post           Claude Code hooks (reads JSON on stdin)
 """
 
 import argparse
@@ -100,24 +101,14 @@ def cmd_lint(cfg: DxConfig, args: argparse.Namespace) -> int:
 
 
 def cmd_fmt(cfg: DxConfig, args: argparse.Namespace) -> int:
-    return _run([PY, "-m", "ruff", "format", str(cfg.root)]) or _run(
-        [PY, "-m", "ruff", "check", "--fix", str(cfg.root)]
-    )
+    return _run([PY, "-m", "ruff", "format", str(cfg.root)]) or _run([PY, "-m", "ruff", "check", "--fix", str(cfg.root)])
 
 
 def cmd_test(cfg: DxConfig, args: argparse.Namespace) -> int:
     failed = []
     extra = list(args.pytest_args or [])
     for svc in _services(cfg, args.service):
-        cov = (
-            [
-                f"--cov={svc.package}",
-                "--cov-report=term-missing",
-                f"--cov-report=xml:{cfg.root}/coverage-{svc.name}.xml",
-            ]
-            if args.cov
-            else []
-        )
+        cov = [f"--cov={svc.package}", "--cov-report=term-missing", f"--cov-report=xml:{cfg.root}/coverage-{svc.name}.xml"] if args.cov else []
         if _run([PY, "-m", "pytest", str(svc.tests), *cov, *extra], cwd=svc.path):
             failed.append(svc.name)
     kit_tests = cfg.root / "packages" / "platform-kit" / "tests"
@@ -188,7 +179,9 @@ def cmd_affected(cfg: DxConfig, args: argparse.Namespace) -> int:
             check=False,
         )
         # unknown base (first commit, shallow clone): be safe, test everything
-        changed = ["pyproject.toml"] if out.returncode != 0 else [line for line in out.stdout.splitlines() if line]
+        changed = (
+            ["pyproject.toml"] if out.returncode != 0 else [line for line in out.stdout.splitlines() if line]
+        )
         shared_prefixes = ("packages/", "pyproject.toml", "uv.lock", ".github/", "compose.yaml")
         if any(c.startswith(shared_prefixes) for c in changed):
             names = [s.name for s in services]
@@ -251,7 +244,29 @@ def cmd_new_service(cfg: DxConfig, args: argparse.Namespace) -> int:
     if args.with_example:
         new_module(load_config(cfg.root), svc, "items")
         print("dx: added example module 'items'")
+    if args.with_saas:
+        from platform_kit.cli.scaffold import new_saas
+
+        modules = ("identity", "billing")
+        if args.name == "identity":
+            modules = ("identity",)
+        elif args.name == "billing":
+            modules = ("billing",)
+        for path in new_saas(load_config(cfg.root), svc, modules=modules):
+            print(f"  + {path.relative_to(cfg.root)}")
+        print(f"dx: added SaaS modules {modules}")
     print("next: uv sync --all-packages && uv run dx run " + svc.name)
+    return 0
+
+
+def cmd_new_saas(cfg: DxConfig, args: argparse.Namespace) -> int:
+    from platform_kit.cli.scaffold import new_saas
+
+    svc = cfg.get_service(args.service)
+    modules = tuple(args.modules) if args.modules else ("identity", "billing")
+    for path in new_saas(cfg, svc, modules=modules):
+        print(f"  + {path.relative_to(cfg.root)}")
+    print("dx: SaaS spine installed. Set REDIS_URL and PLATFORM_PROFILE=saas.")
     return 0
 
 
@@ -352,7 +367,13 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("new-service", help="scaffold a service")
     s.add_argument("name")
     s.add_argument("--with-example", action="store_true")
+    s.add_argument("--with-saas", action="store_true", help="also install identity + billing modules")
     s.set_defaults(func=cmd_new_service)
+
+    s = sub.add_parser("new-saas", help="install SaaS spine (identity + billing) into a service")
+    s.add_argument("service")
+    s.add_argument("--modules", nargs="+", choices=["identity", "billing"], help="subset of modules")
+    s.set_defaults(func=cmd_new_saas)
 
     s = sub.add_parser("new-module", help="scaffold a feature module")
     s.add_argument("service")

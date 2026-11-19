@@ -1,0 +1,90 @@
+"""Identity DB queries."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import UTC, datetime
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core_api.modules.identity.models import (
+    AuditEventRow,
+    Invitation,
+    Membership,
+    Permission,
+    Role,
+    RolePermission,
+    Tenant,
+    User,
+)
+from platform_kit.db import BaseRepository
+
+
+class IdentityRepository(BaseRepository[User]):
+    model = User
+
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session)
+
+    async def get_user_by_email(self, email: str) -> User | None:
+        return await self.session.scalar(select(User).where(User.email == email.lower()))
+
+    async def get_tenant_by_slug(self, slug: str) -> Tenant | None:
+        return await self.session.scalar(select(Tenant).where(Tenant.slug == slug))
+
+    async def get_system_role(self, name: str) -> Role | None:
+        return await self.session.scalar(select(Role).where(Role.name == name, Role.tenant_id.is_(None)))
+
+    async def list_memberships(self, user_id: uuid.UUID) -> list[tuple[Membership, Tenant, Role]]:
+        rows = await self.session.execute(
+            select(Membership, Tenant, Role)
+            .join(Tenant, Tenant.id == Membership.tenant_id)
+            .join(Role, Role.id == Membership.role_id)
+            .where(Membership.user_id == user_id, Membership.status == "active")
+        )
+        return list(rows.all())
+
+    async def get_membership(self, user_id: uuid.UUID, tenant_id: uuid.UUID) -> Membership | None:
+        return await self.session.scalar(
+            select(Membership).where(
+                Membership.user_id == user_id,
+                Membership.tenant_id == tenant_id,
+                Membership.status == "active",
+            )
+        )
+
+    async def permissions_for_role(self, role_id: uuid.UUID) -> list[str]:
+        rows = await self.session.scalars(
+            select(Permission.code)
+            .join(RolePermission, RolePermission.permission_id == Permission.id)
+            .where(RolePermission.role_id == role_id)
+        )
+        return list(rows)
+
+    async def get_invitation_by_hash(self, token_hash: str) -> Invitation | None:
+        return await self.session.scalar(select(Invitation).where(Invitation.token_hash == token_hash))
+
+    async def list_audit(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        since: datetime | None,
+        until: datetime | None,
+        action: str | None,
+        limit: int,
+    ) -> list[AuditEventRow]:
+        q = select(AuditEventRow).where(AuditEventRow.tenant_id == tenant_id)
+        if since:
+            q = q.where(AuditEventRow.created_at >= since)
+        if until:
+            q = q.where(AuditEventRow.created_at <= until)
+        if action:
+            q = q.where(AuditEventRow.action == action)
+        q = q.order_by(AuditEventRow.created_at.desc()).limit(limit)
+        return list(await self.session.scalars(q))
+
+    async def add_audit(self, row: AuditEventRow) -> AuditEventRow:
+        self.session.add(row)
+        await self.session.flush()
+        return row
