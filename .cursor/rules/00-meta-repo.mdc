@@ -1,0 +1,7 @@
+---
+description: Aham is a Copier template repo; examples are generated output
+alwaysApply: true
+---
+- Edit `template/`, never `backend/*` or `frontend/web-spa` directly; re-render the example and copy it over. See `AGENTS.md` for the platform-kit exception (developed in `backend/mono-monolith`, synced to the template).
+- Run `./scripts/check-examples.sh` before finishing; it fails on example drift or nested `.git` folders.
+- New Copier choice → add a row to the matrix in `.github/workflows/template.yml`.

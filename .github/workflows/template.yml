@@ -1,0 +1,104 @@
+name: Template
+
+# Guards the Copier template itself: every supported answer combination must generate a
+# project that passes its own checks, and the committed examples must match the template.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GIT_AUTHOR_NAME: ci
+  GIT_AUTHOR_EMAIL: ci@example.com
+  GIT_COMMITTER_NAME: ci
+  GIT_COMMITTER_EMAIL: ci@example.com
+
+jobs:
+  examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+      - run: ./scripts/check-examples.sh
+
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: monolith-saas
+            answers: --data repo_layout=monorepo --data architecture=monolith --data platform_profile=saas --data messaging=none
+          - name: monolith-api
+            answers: --data repo_layout=monorepo --data architecture=monolith --data platform_profile=api --data messaging=none
+          - name: microservices-saas-kafka
+            answers: --data repo_layout=monorepo --data architecture=microservices --data platform_profile=saas --data messaging=kafka
+          - name: microservices-api-moon
+            answers: --data repo_layout=monorepo --data architecture=microservices --data platform_profile=api --data messaging=none --data repo_manager=moon
+          - name: polyrepo-kit
+            answers: --data repo_layout=polyrepo_kit
+    name: backend (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Generate
+        env:
+          ANSWERS: ${{ matrix.answers }}
+        run: |
+          # shellcheck disable=SC2086 # ANSWERS is a list of --data flags from the matrix above
+          uvx copier copy --trust --defaults --data stack=backend --data project_name="Gen Check" $ANSWERS template "$RUNNER_TEMP/gen"
+      - name: Checks
+        working-directory: ${{ runner.temp }}/gen
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+          uv run pyright
+          uv run dx check
+          uv run pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        auth_mode: [saas, dev]
+    name: frontend (${{ matrix.auth_mode }})
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate
+        env:
+          AUTH_MODE: ${{ matrix.auth_mode }}
+        run: uvx copier copy --trust --defaults --data stack=frontend --data project_name="Gen Check" --data auth_mode="$AUTH_MODE" template "$RUNNER_TEMP/gen"
+      - name: Checks
+        working-directory: ${{ runner.temp }}/gen
+        env:
+          DX_ALLOW_BASELINE: "1"
+        run: |
+          pnpm format:check
+          pnpm typecheck
+          pnpm lint
+          pnpm dx check
+          pnpm test
+          pnpm --filter "./apps/web" build
