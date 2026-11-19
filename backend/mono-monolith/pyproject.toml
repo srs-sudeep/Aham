@@ -17,14 +17,12 @@ platform-kit = { workspace = true }
 [dependency-groups]
 dev = [
   "platform-kit[testing]",
-  # Dev-only, and deliberately included whatever the answers were: platform_kit.messaging
-  # and .telemetry import these lazily, and pyright still needs to resolve them to
+  # Dev-only, and deliberately included whatever the answers were: platform_kit.messaging,
+  # .telemetry and the SaaS modules import these lazily, and pyright still needs to resolve them to
   # type-check the kit (a kit-only repo installs no service that would pull them in).
   "platform-kit[kafka]",
   "platform-kit[otel]",
   "platform-kit[saas]",
-  # Optional card billing: uncomment to enable Stripe Checkout/webhooks
-  # "platform-kit[stripe]",
   "pytest-cov>=6.0",
   "ruff>=0.8",
   "pyright>=1.1.390",

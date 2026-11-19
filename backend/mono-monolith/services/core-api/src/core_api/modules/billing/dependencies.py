@@ -31,13 +31,13 @@ def get_billing_service(session: SessionDep, request: Request) -> BillingService
                 "install with: uv sync --extra stripe / platform-kit[stripe]"
             ) from exc
 
-        async def _activate(tenant_id, plan_code):  # noqa: ANN001
+        async def _activate(tenant_id, plan_code):
             await svc.activate(tenant_id, plan_code)
 
-        async def _cancel(tenant_id):  # noqa: ANN001
+        async def _cancel(tenant_id):
             await svc.cancel(tenant_id)
 
-        async def _past_due(tenant_id):  # noqa: ANN001
+        async def _past_due(tenant_id):
             await svc.mark_past_due(tenant_id)
 
         svc.payment = StripePaymentProvider(

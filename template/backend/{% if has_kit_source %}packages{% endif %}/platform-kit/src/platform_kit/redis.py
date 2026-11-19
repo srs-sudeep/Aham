@@ -20,11 +20,17 @@ class RedisClient:
         self._client: Any = None
 
     async def connect(self) -> None:
-        if not self.settings.redis_url:
+        url = self.settings.redis_url
+        if not url:
             return
-        from redis.asyncio import Redis
+        if url.startswith("memory://"):  # tests / offline dev; needs platform-kit[testing]
+            from fakeredis import FakeAsyncRedis
 
-        self._client = Redis.from_url(self.settings.redis_url, decode_responses=True)
+            self._client = FakeAsyncRedis(decode_responses=True)
+        else:
+            from redis.asyncio import Redis
+
+            self._client = Redis.from_url(url, decode_responses=True)
         await self._client.ping()
         log.info("redis_connected")
 

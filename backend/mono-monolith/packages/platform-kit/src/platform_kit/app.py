@@ -68,7 +68,7 @@ def load_models(package: str, *, include_messaging: bool = False) -> None:
                     raise
 
 
-def create_app(
+def create_app(  # noqa: PLR0915  # composition root: one flat list of wiring steps
     *,
     settings: ServiceSettings,
     package: str,

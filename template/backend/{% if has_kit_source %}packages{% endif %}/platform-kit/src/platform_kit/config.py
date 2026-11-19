@@ -6,6 +6,7 @@ Reading os.environ anywhere else is flagged by `dx check` (CFG001).
 
 from enum import StrEnum
 from typing import Literal, Self
+from uuid import UUID
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -57,11 +58,13 @@ class ServiceSettings(BaseSettings):
     refresh_cookie_name: str = "refresh_token"
     refresh_cookie_secure: bool = True
     refresh_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
-    token_delivery: Literal["body", "cookie", "both"] = "both"
+    token_delivery: Literal["body", "cookie", "both"] = "both"  # noqa: S105
 
     # redis / saas
     redis_url: str | None = None
     platform_profile: Literal["api", "saas"] = "api"
+    # Your own org inside the SaaS: its admins run operator-only actions (manual plans, overrides).
+    platform_operator_tenant_id: UUID | None = None
     rate_limit_login: int = 10
     rate_limit_window_seconds: int = 60
 
@@ -70,8 +73,9 @@ class ServiceSettings(BaseSettings):
     oidc_redirect_uri: str | None = None  # e.g. http://localhost:8001/api/v1/auth/sso/callback
     stripe_api_key: SecretStr | None = None
     stripe_webhook_secret: SecretStr | None = None
-    stripe_success_url: str = "http://localhost:3000/billing/success"
-    stripe_cancel_url: str = "http://localhost:3000/billing/cancel"
+    frontend_url: str | None = None  # SPA origin for SSO / billing redirects, e.g. http://localhost:5173
+    stripe_success_url: str = "http://localhost:5173/billing?checkout=success"
+    stripe_cancel_url: str = "http://localhost:5173/billing?checkout=cancel"
     stripe_price_by_plan: dict[str, str] = Field(default_factory=dict)  # plan_code -> price_id
 
     # inter-service http
@@ -92,7 +96,11 @@ class ServiceSettings(BaseSettings):
     @model_validator(mode="after")
     def _require_safe_auth_outside_dev(self) -> Self:
         """Refuse to start staging/prod with the public HS256 default or incomplete JWKS config."""
-        if self.platform_profile == "saas" and not self.redis_url and self.env not in (Environment.DEV, Environment.TEST):
+        if (
+            self.platform_profile == "saas"
+            and not self.redis_url
+            and self.env not in (Environment.DEV, Environment.TEST)
+        ):
             raise ValueError("REDIS_URL is required for platform_profile=saas outside dev/test")
 
         if self.env in (Environment.DEV, Environment.TEST):

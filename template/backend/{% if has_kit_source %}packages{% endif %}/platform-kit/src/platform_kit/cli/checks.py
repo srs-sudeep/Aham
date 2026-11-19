@@ -9,7 +9,7 @@ Disable a rule project-wide with ``[tool.dx] ignore = ["API005"]`` (needs CODEOW
 
 import ast
 import re
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -49,11 +49,20 @@ RULES: dict[str, str] = {
     # memory / resources / code patterns
     "MEM001": "Do not create DB engines inside functions; create once at module/lifespan scope",
     "MEM002": "Do not construct httpx clients inside handlers; use lifespan / ServiceClient",
-    "MEM003": "Module-level mutable list/dict that grows at runtime is a leak risk; use bounded cache or external store",
+    "MEM003": (
+        "Module-level mutable list/dict that grows at runtime is a leak risk; use bounded cache or external store"
+    ),
     "CODE001": "session.commit()/await session.commit() belongs in the repository layer (BaseRepository.commit)",
+    # tenancy
+    "TEN001": (
+        "Module stores tenant_id but router.py never binds the caller's tenant "
+        "(TenantIdDep / principal.tid / PlatformOperatorDep, or mark `# dx: cross-tenant <why>`)"
+    ),
 }
 
 ROUTE_VERBS = {"get", "post", "put", "patch", "delete"}
+_TENANT_COLUMN = re.compile(r"^\s+tenant_id\s*[:=]", re.MULTILINE)
+_TENANT_BINDINGS = ("TenantIdDep", "bind_tenant_context", "PlatformOperatorDep", "principal.tid", "dx: cross-tenant")
 CROSS_MODULE_ALLOWED = {"service", "schemas", "errors"}
 _SNAKE = re.compile(r"^[a-z][a-z0-9_]*$")
 _SUPPRESS = re.compile(r"#\s*dx:\s*ignore(?:\[(?P<codes>[A-Z0-9, ]+)\])?")
@@ -63,9 +72,18 @@ LAYER_RULES: dict[str, tuple[set[str], tuple[str, ...]]] = {
     "router": ({"repository", "models"}, ("sqlalchemy", "platform_kit.db")),
     "service": ({"router", "dependencies"}, ("fastapi", "starlette")),
     "repository": ({"router", "service", "dependencies", "schemas"}, ("fastapi", "starlette", "pydantic")),
-    "models": ({"router", "service", "repository", "schemas", "dependencies", "events"}, ("fastapi", "starlette", "pydantic")),
-    "schemas": ({"router", "service", "repository", "models", "dependencies", "events"}, ("sqlalchemy", "fastapi", "starlette")),
-    "errors": ({"router", "service", "repository", "models", "schemas", "dependencies", "events"}, ("fastapi", "starlette", "sqlalchemy")),
+    "models": (
+        {"router", "service", "repository", "schemas", "dependencies", "events"},
+        ("fastapi", "starlette", "pydantic"),
+    ),
+    "schemas": (
+        {"router", "service", "repository", "models", "dependencies", "events"},
+        ("sqlalchemy", "fastapi", "starlette"),
+    ),
+    "errors": (
+        {"router", "service", "repository", "models", "schemas", "dependencies", "events"},
+        ("fastapi", "starlette", "sqlalchemy"),
+    ),
     "constants": ({"router", "service", "repository", "models", "schemas", "dependencies", "events", "errors"}, ()),
     "dependencies": ({"router", "events"}, ()),
     "events": ({"router", "dependencies"}, ("fastapi", "starlette")),
@@ -84,7 +102,12 @@ BLOCKING_CALLS = (
     "subprocess.Popen",
     "urllib.request.urlopen",
 )
-ENGINE_CTORS = ("create_engine", "create_async_engine", "sqlalchemy.create_engine", "sqlalchemy.ext.asyncio.create_async_engine")
+ENGINE_CTORS = (
+    "create_engine",
+    "create_async_engine",
+    "sqlalchemy.create_engine",
+    "sqlalchemy.ext.asyncio.create_async_engine",
+)
 HTTP_CTORS = ("httpx.Client", "httpx.AsyncClient")
 
 
@@ -225,7 +248,9 @@ def check_router(tree: ast.Module, out: _Collector, max_statements: int) -> None
     for stmt in tree.body:
         if isinstance(stmt, (ast.Assign, ast.AnnAssign)) and isinstance(stmt.value, ast.Call):
             targets = stmt.targets if isinstance(stmt, ast.Assign) else [stmt.target]
-            if any(isinstance(t, ast.Name) and t.id == "router" for t in targets) and _call_name(stmt.value).endswith("SecureRouter"):
+            if any(isinstance(t, ast.Name) and t.id == "router" for t in targets) and _call_name(stmt.value).endswith(
+                "SecureRouter"
+            ):
                 has_router = True
                 missing = [k for k in ("prefix", "tags") if _kw(stmt.value, k) is None]
                 if missing:
@@ -248,7 +273,11 @@ def check_router(tree: ast.Module, out: _Collector, max_statements: int) -> None
                 out.add(fn, "API003", label)
             if fn.returns is None and _kw(dec, "response_model") is None:
                 out.add(fn, "API004", label)
-            body = fn.body[1:] if (fn.body and isinstance(fn.body[0], ast.Expr) and isinstance(fn.body[0].value, ast.Constant)) else fn.body
+            body = (
+                fn.body[1:]
+                if (fn.body and isinstance(fn.body[0], ast.Expr) and isinstance(fn.body[0].value, ast.Constant))
+                else fn.body
+            )
             count = sum(1 for _ in _iter_statements(body))
             if count > max_statements:
                 out.add(fn, "API005", f"{label} has {count} statements (max {max_statements})")
@@ -279,10 +308,7 @@ def check_general(ctx: FileCtx, tree: ast.AST, out: _Collector) -> None:
             if isinstance(child, ast.AsyncFunctionDef):
                 child_async = True
                 child_fn = True
-            elif isinstance(child, ast.FunctionDef):
-                child_async = False
-                child_fn = True
-            elif isinstance(child, ast.Lambda):
+            elif isinstance(child, (ast.FunctionDef, ast.Lambda)):
                 child_async = False
                 child_fn = True
             inspect(child, child_async, child_fn)
@@ -299,9 +325,11 @@ def check_general(ctx: FileCtx, tree: ast.AST, out: _Collector) -> None:
                 out.add(node, "CFG001")
             elif name.split(".")[-1] == "text" and node.args and isinstance(node.args[0], (ast.JoinedStr, ast.BinOp)):
                 out.add(node, "SQL001")
-            elif in_async and (name in BLOCKING_CALLS or name.endswith(".sleep") and "asyncio" not in name):
+            elif in_async and (name in BLOCKING_CALLS or (name.endswith(".sleep") and "asyncio" not in name)):
                 out.add(node, "ASYNC001", f"`{name}`")
-            elif in_function and (name in ENGINE_CTORS or name.endswith("create_engine") or name.endswith("create_async_engine")):
+            elif in_function and (
+                name in ENGINE_CTORS or name.endswith("create_engine") or name.endswith("create_async_engine")
+            ):
                 out.add(node, "MEM001", f"`{name}`")
             elif in_function and name in HTTP_CTORS:
                 # allow inside functions named lifespan/_setup
@@ -374,7 +402,19 @@ def check_module_dirs(service: Service, cfg: DxConfig, only: set[Path] | None, r
             Violation(rel(sub), 1, 1, "STR002", f"{RULES['STR002']}: nested folder '{sub.name}'")
             for sub in sorted(p for p in entry.iterdir() if p.is_dir() and p.name != "__pycache__")
         )
+        out.extend(_check_tenant_binding(entry, rel))
     return out
+
+
+def _check_tenant_binding(module: Path, rel: Callable[[Path], str]) -> list[Violation]:
+    models, router = module / "models.py", module / "router.py"
+    if not (models.is_file() and router.is_file()):
+        return []
+    if not _TENANT_COLUMN.search(models.read_text(encoding="utf-8")):
+        return []
+    if any(marker in router.read_text(encoding="utf-8") for marker in _TENANT_BINDINGS):
+        return []
+    return [Violation(rel(router), 1, 1, "TEN001", RULES["TEN001"])]
 
 
 def _suppressed(violation: Violation, lines: list[str]) -> bool:
@@ -418,7 +458,11 @@ def run_checks(cfg: DxConfig, paths: Iterable[Path] | None = None, service: str 
         other = all_packages - {svc.package}
         files = sorted(svc.src.rglob("*.py"))
         if only is not None:
-            files = [f for f in files if f.resolve() in only or any(f.resolve().is_relative_to(p) for p in only if p.is_dir())]
+            files = [
+                f
+                for f in files
+                if f.resolve() in only or any(f.resolve().is_relative_to(p) for p in only if p.is_dir())
+            ]
             module_scope = {f.resolve().parent for f in files} | {p for p in only if p.is_dir()}
         else:
             module_scope = None

@@ -138,6 +138,8 @@ def new_service(cfg: DxConfig, name: str) -> Service:
         "kafka_enabled": "true" if kafka else "false",
         "kafka_bool": "True" if kafka else "False",
         "kafka_depends": "\n      kafka:\n        condition: service_healthy" if kafka else "",
+        "saas_env": _SAAS_COMPOSE_ENV if saas else "",
+        "saas_depends": "\n      redis:\n        condition: service_healthy" if saas else "",
     }
     created = _render_tree(TEMPLATES / "service", dest, variables, skip=skip)
     _write_repo_manager_files(cfg, name, dest)
@@ -146,8 +148,17 @@ def new_service(cfg: DxConfig, name: str) -> Service:
     return Service(name, package, dest)
 
 
+_SAAS_COMPOSE_ENV = (
+    "\n      PLATFORM_PROFILE: saas"
+    "\n      REDIS_URL: redis://redis:6379/0"
+    '\n      CORS_ORIGINS: \'${CORS_ORIGINS:-["http://localhost:5173", "http://localhost:8080"]}\''
+    "\n      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}"
+)
+
+
 def _write_repo_manager_files(cfg: DxConfig, name: str, dest: Path) -> None:
     if cfg.repo_manager == "nx":
+
         def target(cmd: str, **extra: object) -> dict[str, object]:
             return {"executor": "nx:run-commands", "options": {"command": cmd, "cwd": "{workspaceRoot}"}, **extra}
 
@@ -161,7 +172,9 @@ def _write_repo_manager_files(cfg: DxConfig, name: str, dest: Path) -> None:
                 "lint": target(f"uv run dx lint --service {name}", cache=True),
                 "test": target(f"uv run dx test --service {name}", cache=True),
                 "serve": target(f"uv run dx run {name}", continuous=True),
-                "docker": target(f"docker build -f {cfg.services_dir}/{name}/Dockerfile -t {cfg.project_slug}-{name} ."),
+                "docker": target(
+                    f"docker build -f {cfg.services_dir}/{name}/Dockerfile -t {cfg.project_slug}-{name} ."
+                ),
             },
         }
         (dest / "project.json").write_text(json.dumps(project, indent=2) + "\n", encoding="utf-8")
@@ -290,6 +303,14 @@ def new_saas(
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
             created.append(target)
+        test_tmpl = TEMPLATES / "saas" / "tests" / f"test_{name}.py.tmpl"
+        test_target = service.path / "tests" / "api" / f"test_{name}.py"
+        if test_tmpl.exists() and not test_target.exists():
+            test_target.parent.mkdir(parents=True, exist_ok=True)
+            test_target.write_text(
+                string.Template(test_tmpl.read_text(encoding="utf-8")).substitute(variables), encoding="utf-8"
+            )
+            created.append(test_target)
     resource_map = {
         "identity": _SAAS_RESOURCES[:3],
         "billing": _SAAS_RESOURCES[3:],
@@ -309,11 +330,16 @@ def _enable_saas_settings(service: Service) -> None:
     if "platform_profile" in text:
         return
     addition = (
-        '    platform_profile: str = "saas"\n'
+        '    platform_profile: Literal["api", "saas"] = "saas"\n'
         '    redis_url: str | None = "redis://localhost:6379/0"\n'
         '    jwt_issuer: str | None = "https://auth.local"\n'
         '    jwt_audience: str | None = "api://local"\n'
     )
+    if "from typing import Literal" not in text:
+        text = text.replace(
+            "from platform_kit.config import ServiceSettings",
+            "from typing import Literal\n\nfrom platform_kit.config import ServiceSettings",
+        )
     # Insert before the trailing `settings = Settings()` assignment.
     if "settings = Settings()" in text:
         text = text.replace("settings = Settings()", addition + "\n\nsettings = Settings()")

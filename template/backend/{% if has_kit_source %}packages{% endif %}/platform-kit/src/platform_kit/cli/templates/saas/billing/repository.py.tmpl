@@ -5,8 +5,6 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from platform_kit.db import BaseRepository
-
 from $package.modules.billing.models import (
     EntitlementOverride,
     EntitlementSnapshotRow,
@@ -15,6 +13,7 @@ from $package.modules.billing.models import (
     PlanFeature,
     Subscription,
 )
+from platform_kit.db import BaseRepository
 
 
 class BillingRepository(BaseRepository[Plan]):

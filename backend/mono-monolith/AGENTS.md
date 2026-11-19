@@ -29,18 +29,24 @@ Import rules: router ↛ repository/models/sqlalchemy · service ↛ fastapi/rou
 another module may be used only through its `service`, `schemas` or `errors` · **services never import each other**
 (use `platform_kit.http.ServiceClient`).
 
-## SaaS spine (platform_profile=saas)
-- Redis required (`REDIS_URL`). Auth: `/auth/login`, `/auth/refresh`, `/auth/switch-tenant` (identity module).
-- Billing: plans/features/quotas via `/billing/*`; gate with `require_feature` / `require_quota`.
-- Tenancy: roles on memberships; JWT `tid`; use `TenantScopedMixin` + RLS on domain tables.
-- Phase 2: OIDC SSO (`/auth/sso/*`), SCIM (`/scim/v2/Users`), API keys, TOTP MFA.
-- Billing default is ManualProvider. Stripe is optional (`platform-kit[stripe]` + `STRIPE_*` env).
+## SaaS spine (when `platform_profile=saas`)
+- Redis is required (`REDIS_URL`). Access JWT + opaque refresh (hashed in Redis); use `/auth/login`, `/auth/refresh`, `/auth/switch-tenant`.
+- Install modules with `uv run dx new-saas <service>` (identity + billing). Do not hand-roll auth tables.
+- Tenancy: roles live on **memberships**, not on the global user. Tokens carry `tid`; never trust a client-supplied tenant id.
+  Tenant routes take `tenant_id: TenantIdDep` (binds RLS too). Only platform-operator routes (`_operator: PlatformOperatorDep`,
+  `PLATFORM_OPERATOR_TENANT_ID`) may target another tenant. `dx check` TEN001 flags tenant-owned modules whose router binds neither.
+- Isolation ≠ authorization: use `TenantScopedMixin` + Postgres RLS (`platform_kit.tenancy.enable_rls_sql`) on domain tables; fail closed on tenant mismatch.
+- Entitlements: gate paid features with `require_feature("…")` / `require_quota("…")` — never call a payment provider on the hot path. ManualProvider activates plans; Stripe is a phase-2 `PaymentProvider`.
+- Audit: append-only (`/auth/audit`); never store passwords/tokens in payloads.
+- Phase 2: OIDC SSO (`/auth/sso/*`), SCIM (`/scim/v2/Users`), API keys (`aham_…` / `X-API-Key`), TOTP MFA.
+- Billing default is **ManualProvider**. Stripe is optional: install `platform-kit[stripe]` and set `STRIPE_*`.
 
 ## Endpoints & RBAC (mandatory)
 
 This is **route-level RBAC** (permission strings on HTTP routes), not object-level / PBAC.
 A permission like `orders.item:read` authorizes the endpoint; it does **not** scope rows by owner or tenant.
 Object-level checks (IDOR, multi-tenant filters) are a separate concern — discuss with a lead before inventing patterns.
+Under SaaS, also enforce `tid` isolation on every tenant-owned row (RLS + repository filters).
 
 ```python
 router = SecureRouter(prefix="/purchase-orders", tags=["purchase-orders"])

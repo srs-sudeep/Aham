@@ -1,0 +1,78 @@
+name: Release
+
+# Push a semver tag (git tag v1.2.3 && git push --tags) to publish images to GHCR:
+#   ghcr.io/<owner>/<repo>/<service>:1.2.3, :1.2, :sha-<short>
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.list.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - run: uv sync --all-packages
+      - id: list
+        run: echo "services=$(uv run dx services --json)" >> "$GITHUB_OUTPUT"
+
+  image:
+    needs: plan
+    if: needs.plan.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.plan.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - name: Validate service name
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          if [[ ! "$SERVICE" =~ ^[a-z][a-z0-9-]*$ ]]; then
+            echo "Invalid service name: $SERVICE" >&2
+            exit 1
+          fi
+          echo "DOCKERFILE=services/$SERVICE/Dockerfile" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/$SERVICE" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

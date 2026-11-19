@@ -15,10 +15,10 @@ services:
       SERVICE_URLS: '$${SERVICE_URLS:-{}}'
       KAFKA_ENABLED: "$kafka_enabled"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      OTEL_ENDPOINT: http://jaeger:4317
+      OTEL_ENDPOINT: http://jaeger:4317$saas_env
     ports:
       - "$port:8000"
     depends_on:
       postgres:
-        condition: service_healthy$kafka_depends
+        condition: service_healthy$kafka_depends$saas_depends
     restart: unless-stopped

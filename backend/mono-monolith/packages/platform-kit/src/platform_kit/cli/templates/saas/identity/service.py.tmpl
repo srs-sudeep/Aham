@@ -11,12 +11,6 @@ from uuid import UUID
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
-from platform_kit.audit import Audit, AuditEvent
-from platform_kit.config import ServiceSettings
-from platform_kit.providers import EmailSender, LoggingEmailSender
-from platform_kit.redis import RedisClient
-from platform_kit.security import TokenIssuer, TokenPair
-
 from $package.modules.identity.errors import (
     EmailTakenError,
     InvalidCredentialsError,
@@ -34,6 +28,7 @@ from $package.modules.identity.models import (
     Tenant,
     User,
 )
+from $package.modules.identity.phase2 import Phase2Mixin
 from $package.modules.identity.repository import IdentityRepository
 from $package.modules.identity.schemas import (
     AcceptInviteRequest,
@@ -45,6 +40,12 @@ from $package.modules.identity.schemas import (
     TenantSelectionResponse,
     TokenResponse,
 )
+from platform_kit.audit import Audit, AuditEvent
+from platform_kit.config import ServiceSettings
+from platform_kit.errors import expect
+from platform_kit.providers import EmailSender, LoggingEmailSender
+from platform_kit.redis import RedisClient
+from platform_kit.security import TokenIssuer, TokenPair
 
 _ph = PasswordHasher()
 SYSTEM_PERMISSIONS = [
@@ -57,10 +58,11 @@ SYSTEM_PERMISSIONS = [
 ]
 
 
-class IdentityService:
+class IdentityService(Phase2Mixin):
     def __init__(
         self,
         repo: IdentityRepository,
+        *,
         settings: ServiceSettings,
         issuer: TokenIssuer,
         redis: RedisClient,
@@ -105,8 +107,7 @@ class IdentityService:
         if await self.repo.get_tenant_by_slug(body.tenant_slug):
             raise SlugTakenError()
         await self.seed_system()
-        admin_role = await self.repo.get_system_role("admin")
-        assert admin_role is not None
+        admin_role = expect(await self.repo.get_system_role("admin"), "admin_role")
         user = User(email=body.email.lower(), password_hash=_ph.hash(body.password), status="active")
         tenant = Tenant(slug=body.tenant_slug, name=body.tenant_name, status="active", region="us")
         self.repo.session.add_all([user, tenant])
@@ -128,11 +129,26 @@ class IdentityService:
             raise InvalidCredentialsError() from exc
         if user.status == "disabled":
             raise UserDisabledError()
+        if user.mfa_enabled:
+            from sqlalchemy import select
+
+            from $package.modules.identity.models import UserMfa
+            from $package.modules.identity.schemas import MfaRequiredResponse
+            from platform_kit.mfa import require_totp
+
+            if not body.mfa_code:
+                token = secrets.token_urlsafe(24)
+                await self.redis.set(f"mfa_pending:{token}", str(user.id), ex=300)
+                return MfaRequiredResponse(mfa_token=token)  # type: ignore[return-value]
+            mfa = await self.repo.session.scalar(select(UserMfa).where(UserMfa.user_id == user.id))
+            if mfa is None or not mfa.confirmed:
+                raise InvalidCredentialsError(detail="mfa not configured")
+            require_totp(mfa.totp_secret, body.mfa_code)
         memberships = await self.repo.list_memberships(user.id)
         if not memberships:
             raise TenantRequiredError(detail="user has no tenant memberships")
         if len(memberships) == 1:
-            m, tenant, role = memberships[0]
+            _, tenant, role = memberships[0]
             await self.audit.record("auth.login.success", actor_id=user.id, tenant_id=tenant.id, ip=ip)
             return await self._issue_for_membership(user, tenant.id, role)
         session = secrets.token_urlsafe(32)
@@ -174,8 +190,7 @@ class IdentityService:
         role_row = await self.repo.get_membership(user.id, UUID(tid))
         if role_row is None:
             raise MembershipNotFoundError()
-        role = await self.repo.session.get(Role, role_row.role_id)
-        assert role is not None
+        role = expect(await self.repo.session.get(Role, role_row.role_id), "role")
         pair = await self.issuer.issue_pair(
             sub=str(user.id),
             tid=tid,
@@ -197,7 +212,7 @@ class IdentityService:
         if role is None:
             await self.seed_system()
             role = await self.repo.get_system_role(body.role) or await self.repo.get_system_role("member")
-        assert role is not None
+        role = expect(role, "role")
         raw = secrets.token_urlsafe(32)
         inv = Invitation(
             email=body.email.lower(),
@@ -241,8 +256,7 @@ class IdentityService:
             )
         inv.accepted_at = datetime.now(UTC)
         await self.repo.commit()
-        role = await self.repo.session.get(Role, inv.role_id)
-        assert role is not None
+        role = expect(await self.repo.session.get(Role, inv.role_id), "role")
         await self.audit.record("identity.invite.accept", actor_id=user.id, tenant_id=inv.tenant_id, ip=ip)
         return await self._issue_for_membership(user, inv.tenant_id, role)
 
@@ -277,9 +291,7 @@ class IdentityService:
         action: str | None,
         limit: int,
     ) -> list[AuditEventOut]:
-        rows = await self.repo.list_audit(
-            tenant_id=tenant_id, since=since, until=until, action=action, limit=limit
-        )
+        rows = await self.repo.list_audit(tenant_id=tenant_id, since=since, until=until, action=action, limit=limit)
         return [
             AuditEventOut(
                 id=r.id,
@@ -316,8 +328,7 @@ class IdentityService:
         membership = await self.repo.get_membership(user.id, tenant_id)
         if membership is None:
             raise MembershipNotFoundError()
-        role = await self.repo.session.get(Role, membership.role_id)
-        assert role is not None
+        role = expect(await self.repo.session.get(Role, membership.role_id), "role")
         await self.audit.record(action, actor_id=user.id, tenant_id=tenant_id, ip=ip)
         return await self._issue_for_membership(user, tenant_id, role)
 

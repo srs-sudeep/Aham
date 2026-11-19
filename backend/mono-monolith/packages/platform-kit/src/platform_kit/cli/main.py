@@ -1,6 +1,6 @@
 """dx: one CLI for every repo, with or without Nx/moon.
 
-dx new-service <name> [--with-example] [--with-saas]  create a service (monorepo) / initialise the repo service (polyrepo)
+dx new-service <name> [--with-example] [--with-saas]  create a service (monorepo) / init the polyrepo service
 dx new-module <service> <name>           create a feature module (router/schemas/service/repository/...)
 dx new-saas <service>                    install identity + billing SaaS spine modules into a service
     dx check [paths...] [--format github]    structure, RBAC, layering, error/logging rules
@@ -12,6 +12,7 @@ dx new-saas <service>                    install identity + billing SaaS spine m
     dx up / down / logs                      docker compose for infra + all services
     dx db upgrade|revision <service> [-m]    alembic per service
     dx affected [--base ref] [--json]        services changed since base (CI matrix)
+dx services [--json]                     list services (Tiltfile, scripts)
     dx openapi <service> [-o file]           export OpenAPI spec (contract checks)
     dx permissions <service>                 RBAC matrix: method, path, permission
     dx token <service> [--perm p | --all]    dev-only JWT for manual / schemathesis testing
@@ -101,14 +102,24 @@ def cmd_lint(cfg: DxConfig, args: argparse.Namespace) -> int:
 
 
 def cmd_fmt(cfg: DxConfig, args: argparse.Namespace) -> int:
-    return _run([PY, "-m", "ruff", "format", str(cfg.root)]) or _run([PY, "-m", "ruff", "check", "--fix", str(cfg.root)])
+    return _run([PY, "-m", "ruff", "format", str(cfg.root)]) or _run(
+        [PY, "-m", "ruff", "check", "--fix", str(cfg.root)]
+    )
 
 
 def cmd_test(cfg: DxConfig, args: argparse.Namespace) -> int:
     failed = []
     extra = list(args.pytest_args or [])
     for svc in _services(cfg, args.service):
-        cov = [f"--cov={svc.package}", "--cov-report=term-missing", f"--cov-report=xml:{cfg.root}/coverage-{svc.name}.xml"] if args.cov else []
+        cov = (
+            [
+                f"--cov={svc.package}",
+                "--cov-report=term-missing",
+                f"--cov-report=xml:{cfg.root}/coverage-{svc.name}.xml",
+            ]
+            if args.cov
+            else []
+        )
         if _run([PY, "-m", "pytest", str(svc.tests), *cov, *extra], cwd=svc.path):
             failed.append(svc.name)
     kit_tests = cfg.root / "packages" / "platform-kit" / "tests"
@@ -166,6 +177,12 @@ def cmd_db(cfg: DxConfig, args: argparse.Namespace) -> int:
     return _run([*alembic, "revision", "--autogenerate", "-m", args.message], cwd=svc.path)
 
 
+def cmd_services(cfg: DxConfig, args: argparse.Namespace) -> int:
+    names = [s.name for s in cfg.services()]
+    print(json.dumps(names) if args.json else "\n".join(names))
+    return 0
+
+
 def cmd_affected(cfg: DxConfig, args: argparse.Namespace) -> int:
     services = cfg.services()
     if cfg.layout == "polyrepo_service":
@@ -179,9 +196,7 @@ def cmd_affected(cfg: DxConfig, args: argparse.Namespace) -> int:
             check=False,
         )
         # unknown base (first commit, shallow clone): be safe, test everything
-        changed = (
-            ["pyproject.toml"] if out.returncode != 0 else [line for line in out.stdout.splitlines() if line]
-        )
+        changed = ["pyproject.toml"] if out.returncode != 0 else [line for line in out.stdout.splitlines() if line]
         shared_prefixes = ("packages/", "pyproject.toml", "uv.lock", ".github/", "compose.yaml")
         if any(c.startswith(shared_prefixes) for c in changed):
             names = [s.name for s in services]
@@ -321,6 +336,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--cov", action="store_true")
     s.add_argument("pytest_args", nargs=argparse.REMAINDER)
     s.set_defaults(func=cmd_test)
+
+    s = sub.add_parser("services", help="list services")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_services)
 
     s = sub.add_parser("run", help="run a service with reload")
     s.add_argument("service")

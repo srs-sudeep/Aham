@@ -17,6 +17,7 @@ from core_api.modules.billing.models import (
 from core_api.modules.billing.repository import BillingRepository
 from core_api.modules.billing.schemas import OverrideRequest, PlanOut, SubscriptionOut
 from platform_kit.entitlements import EntitlementSnapshot, RedisEntitlementStore
+from platform_kit.errors import expect
 from platform_kit.providers import ManualPaymentProvider, PaymentProvider
 from platform_kit.redis import RedisClient
 
@@ -85,7 +86,7 @@ class BillingService:
             out.append(PlanOut(code=plan.code, name=plan.name, interval=plan.interval, features=feats))
         return out
 
-    async def activate(self, tenant_id: UUID, plan_code: str, *, grace_days: int = 3) -> SubscriptionOut:
+    async def activate(self, tenant_id: UUID, plan_code: str) -> SubscriptionOut:
         await self.seed_catalog()
         plan = await self.repo.get_plan_by_code(plan_code)
         if plan is None:
@@ -119,8 +120,7 @@ class BillingService:
             raise SubscriptionNotFoundError()
         sub.status = "past_due"
         sub.grace_until = datetime.now(UTC) + timedelta(days=grace_days)
-        plan = await self.repo.session.get(Plan, sub.plan_id)
-        assert plan is not None
+        plan = expect(await self.repo.session.get(Plan, sub.plan_id), "plan")
         snap = await self._rebuild_snapshot(tenant_id, plan, status="past_due", grace_until=sub.grace_until)
         await self.repo.commit()
         await self.store.put_snapshot(snap)
@@ -131,8 +131,7 @@ class BillingService:
         if sub is None:
             raise SubscriptionNotFoundError()
         sub.status = "canceled"
-        plan = await self.repo.session.get(Plan, sub.plan_id)
-        assert plan is not None
+        plan = expect(await self.repo.session.get(Plan, sub.plan_id), "plan")
         snap = await self._rebuild_snapshot(tenant_id, plan, status="canceled", grace_until=None)
         await self.repo.commit()
         await self.store.put_snapshot(snap)
@@ -150,8 +149,7 @@ class BillingService:
         sub = await self.repo.get_subscription(body.tenant_id)
         if sub is None:
             raise SubscriptionNotFoundError()
-        plan = await self.repo.session.get(Plan, sub.plan_id)
-        assert plan is not None
+        plan = expect(await self.repo.session.get(Plan, sub.plan_id), "plan")
         snap = await self._rebuild_snapshot(body.tenant_id, plan, status=sub.status, grace_until=sub.grace_until)
         await self.repo.commit()
         await self.store.put_snapshot(snap)
@@ -161,10 +159,10 @@ class BillingService:
         sub = await self.repo.get_subscription(tenant_id)
         if sub is None:
             raise SubscriptionNotFoundError()
-        plan = await self.repo.session.get(Plan, sub.plan_id)
-        assert plan is not None
-        snap = await self.store.get_snapshot(str(tenant_id)) or await self._load_snapshot(str(tenant_id))
-        assert snap is not None
+        plan = expect(await self.repo.session.get(Plan, sub.plan_id), "plan")
+        snap = expect(
+            await self.store.get_snapshot(str(tenant_id)) or await self._load_snapshot(str(tenant_id)), "snap"
+        )
         return SubscriptionOut(
             tenant_id=tenant_id,
             plan_code=plan.code,

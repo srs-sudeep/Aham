@@ -14,15 +14,15 @@ def generate_totp_secret() -> str:
 
 
 def provisioning_uri(*, secret: str, email: str, issuer: str = "Aham") -> str:
-    import pyotp
+    from pyotp.totp import TOTP
 
-    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name=issuer)
+    return TOTP(secret).provisioning_uri(name=email, issuer_name=issuer)
 
 
 def verify_totp(secret: str, code: str) -> bool:
-    import pyotp
+    from pyotp.totp import TOTP
 
-    return bool(pyotp.TOTP(secret).verify(code, valid_window=1))
+    return bool(TOTP(secret).verify(code, valid_window=1))
 
 
 def require_totp(secret: str, code: str | None) -> None:

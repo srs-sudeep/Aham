@@ -28,6 +28,7 @@ from core_api.modules.identity.models import (
     Tenant,
     User,
 )
+from core_api.modules.identity.phase2 import Phase2Mixin
 from core_api.modules.identity.repository import IdentityRepository
 from core_api.modules.identity.schemas import (
     AcceptInviteRequest,
@@ -41,6 +42,7 @@ from core_api.modules.identity.schemas import (
 )
 from platform_kit.audit import Audit, AuditEvent
 from platform_kit.config import ServiceSettings
+from platform_kit.errors import expect
 from platform_kit.providers import EmailSender, LoggingEmailSender
 from platform_kit.redis import RedisClient
 from platform_kit.security import TokenIssuer, TokenPair
@@ -56,10 +58,11 @@ SYSTEM_PERMISSIONS = [
 ]
 
 
-class IdentityService:
+class IdentityService(Phase2Mixin):
     def __init__(
         self,
         repo: IdentityRepository,
+        *,
         settings: ServiceSettings,
         issuer: TokenIssuer,
         redis: RedisClient,
@@ -104,8 +107,7 @@ class IdentityService:
         if await self.repo.get_tenant_by_slug(body.tenant_slug):
             raise SlugTakenError()
         await self.seed_system()
-        admin_role = await self.repo.get_system_role("admin")
-        assert admin_role is not None
+        admin_role = expect(await self.repo.get_system_role("admin"), "admin_role")
         user = User(email=body.email.lower(), password_hash=_ph.hash(body.password), status="active")
         tenant = Tenant(slug=body.tenant_slug, name=body.tenant_name, status="active", region="us")
         self.repo.session.add_all([user, tenant])
@@ -128,11 +130,11 @@ class IdentityService:
         if user.status == "disabled":
             raise UserDisabledError()
         if user.mfa_enabled:
-            from core_api.modules.identity.schemas import MfaRequiredResponse
-            from platform_kit.mfa import require_totp
             from sqlalchemy import select
 
             from core_api.modules.identity.models import UserMfa
+            from core_api.modules.identity.schemas import MfaRequiredResponse
+            from platform_kit.mfa import require_totp
 
             if not body.mfa_code:
                 token = secrets.token_urlsafe(24)
@@ -146,7 +148,7 @@ class IdentityService:
         if not memberships:
             raise TenantRequiredError(detail="user has no tenant memberships")
         if len(memberships) == 1:
-            m, tenant, role = memberships[0]
+            _, tenant, role = memberships[0]
             await self.audit.record("auth.login.success", actor_id=user.id, tenant_id=tenant.id, ip=ip)
             return await self._issue_for_membership(user, tenant.id, role)
         session = secrets.token_urlsafe(32)
@@ -188,8 +190,7 @@ class IdentityService:
         role_row = await self.repo.get_membership(user.id, UUID(tid))
         if role_row is None:
             raise MembershipNotFoundError()
-        role = await self.repo.session.get(Role, role_row.role_id)
-        assert role is not None
+        role = expect(await self.repo.session.get(Role, role_row.role_id), "role")
         pair = await self.issuer.issue_pair(
             sub=str(user.id),
             tid=tid,
@@ -211,7 +212,7 @@ class IdentityService:
         if role is None:
             await self.seed_system()
             role = await self.repo.get_system_role(body.role) or await self.repo.get_system_role("member")
-        assert role is not None
+        role = expect(role, "role")
         raw = secrets.token_urlsafe(32)
         inv = Invitation(
             email=body.email.lower(),
@@ -255,8 +256,7 @@ class IdentityService:
             )
         inv.accepted_at = datetime.now(UTC)
         await self.repo.commit()
-        role = await self.repo.session.get(Role, inv.role_id)
-        assert role is not None
+        role = expect(await self.repo.session.get(Role, inv.role_id), "role")
         await self.audit.record("identity.invite.accept", actor_id=user.id, tenant_id=inv.tenant_id, ip=ip)
         return await self._issue_for_membership(user, inv.tenant_id, role)
 
@@ -328,8 +328,7 @@ class IdentityService:
         membership = await self.repo.get_membership(user.id, tenant_id)
         if membership is None:
             raise MembershipNotFoundError()
-        role = await self.repo.session.get(Role, membership.role_id)
-        assert role is not None
+        role = expect(await self.repo.session.get(Role, membership.role_id), "role")
         await self.audit.record(action, actor_id=user.id, tenant_id=tenant_id, ip=ip)
         return await self._issue_for_membership(user, tenant_id, role)
 

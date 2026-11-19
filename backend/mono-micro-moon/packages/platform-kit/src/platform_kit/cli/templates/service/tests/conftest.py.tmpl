@@ -5,6 +5,7 @@ os.environ.setdefault("ENV", "test")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("DB_AUTO_CREATE", "true")
 os.environ.setdefault("KAFKA_ENABLED", "false")
+os.environ.setdefault("REDIS_URL", "memory://")  # in-process fake; CI sets a real Redis
 
 from collections.abc import AsyncIterator, Callable  # noqa: E402
 

@@ -107,7 +107,7 @@ def test_long_endpoint_print_env_and_blocking(repo: Path) -> None:
     router.write_text(
         router.read_text()
         + textwrap.dedent(
-            '''
+            """
             import os, time
 
             @router.get("/fat", permission=PUBLIC, summary="fat")
@@ -115,7 +115,7 @@ def test_long_endpoint_print_env_and_blocking(repo: Path) -> None:
                 print("hi")
                 time.sleep(1)
                 os.getenv("X")
-            '''
+            """
         )
         + body
         + "\n    return {}\n"
@@ -142,7 +142,7 @@ def test_sql_injection_pattern(repo: Path) -> None:
     src = make_service(repo)
     f = src / "modules/items/repository.py"
     # Deliberately injectable SQL: the point of the test is that SQL001 catches it.
-    bad_query = 'def bad(name: str):\n    return text(f"SELECT * FROM t WHERE n = {name}")\n'  # noqa: S608
+    bad_query = 'def bad(name: str):\n    return text(f"SELECT * FROM t WHERE n = {name}")\n'
     f.write_text(f.read_text() + "\n\n" + bad_query)
     assert "SQL001" in codes(repo)
 
@@ -206,3 +206,14 @@ def test_mem_module_level_mutable_cache(repo: Path) -> None:
     f = src / "modules/items/service.py"
     f.write_text("_cache = {}\n" + f.read_text())
     assert "MEM003" in codes(repo)
+
+
+def test_tenant_scoped_module_must_bind_tenant(repo: Path) -> None:
+    src = make_service(repo)
+    models = src / "modules/items/models.py"
+    models.write_text(models.read_text() + "\n\nclass Scoped:\n    tenant_id: str\n")
+    assert "TEN001" in codes(repo)
+
+    router = src / "modules/items/router.py"
+    router.write_text("from platform_kit.tenancy import TenantIdDep\n" + router.read_text())
+    assert "TEN001" not in codes(repo)

@@ -4,6 +4,7 @@
     "allow": [
       "Bash(uv run dx check:*)",
       "Bash(uv run dx rules)",
+      "Bash(uv run dx services:*)",
       "Bash(uv run dx lint:*)",
       "Bash(uv run dx test:*)",
       "Bash(uv run dx fmt)",

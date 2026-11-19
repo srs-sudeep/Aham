@@ -12,7 +12,7 @@ from uuid import UUID
 from platform_kit.oidc import OidcAuthFederator
 
 if TYPE_CHECKING:
-    from platform_kit.stripe_billing import StripePaymentProvider as StripePaymentProvider
+    from platform_kit.stripe_billing import StripePaymentProvider
 
 __all__ = [
     "AuthFederator",
@@ -43,14 +43,16 @@ class EmailSender(Protocol):
 class LoggingEmailSender:
     """Dev stub: logs the message instead of delivering."""
 
-    async def send(self, *, to: str, subject: str, body: str, html: str | None = None) -> None:
+    async def send(self, *, to: str, subject: str, body: str, html: str | None = None) -> None:  # noqa: ARG002
         from platform_kit.logging import get_logger
 
         get_logger("platform_kit.email").info("email_send_stub", to=to, subject=subject, body_preview=body[:200])
 
 
 class AuthFederator(Protocol):
-    async def start_login(self, tenant_id: UUID, return_to: str, *, connection: dict[str, Any], redirect_uri: str) -> str: ...
+    async def start_login(
+        self, tenant_id: UUID, return_to: str, *, connection: dict[str, Any], redirect_uri: str
+    ) -> str: ...
 
     async def handle_callback(
         self, *, code: str, state: str, connection: dict[str, Any], redirect_uri: str
@@ -58,7 +60,9 @@ class AuthFederator(Protocol):
 
 
 class UnsupportedAuthFederator:
-    async def start_login(self, tenant_id: UUID, return_to: str, *, connection: dict[str, Any], redirect_uri: str) -> str:
+    async def start_login(
+        self, tenant_id: UUID, return_to: str, *, connection: dict[str, Any], redirect_uri: str
+    ) -> str:
         raise NotImplementedError("Configure an OIDC AuthConnection for this tenant")
 
     async def handle_callback(
@@ -96,5 +100,5 @@ class ManualPaymentProvider:
             "STRIPE_WEBHOOK_SECRET, or use POST /billing/subscription/activate (ManualProvider)."
         )
 
-    async def handle_webhook(self, headers: dict[str, str], body: bytes) -> None:
+    async def handle_webhook(self, headers: dict[str, str], body: bytes) -> None:  # noqa: ARG002
         return None

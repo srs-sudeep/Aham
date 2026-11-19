@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Response
+from fastapi.responses import RedirectResponse
 
 from core_api.modules.identity.dependencies import IdentityServiceDep
 from core_api.modules.identity.schemas import (
@@ -16,12 +17,15 @@ from core_api.modules.identity.schemas import (
     DisableUserRequest,
     InviteRequest,
     LoginRequest,
+    MfaCompleteRequest,
     MfaConfirmRequest,
     MfaEnrollResponse,
     MfaRequiredResponse,
+    RefreshRequest,
     RegisterRequest,
     ScimTokenResponse,
     SelectTenantRequest,
+    SsoLoginResult,
     SsoStartRequest,
     SsoStartResponse,
     SwitchTenantRequest,
@@ -30,14 +34,17 @@ from core_api.modules.identity.schemas import (
     TokenResponse,
     UpsertOidcConnectionRequest,
 )
+from core_api.modules.identity.scim_router import router as scim_router
 from core_api.permissions import Resource
 from platform_kit import PUBLIC, Action, Permission, SecureRouter
+from platform_kit.errors import UnauthorizedError
 from platform_kit.rate_limit import client_ip, rate_limit
-from platform_kit.security import CurrentPrincipal
-
-# Ensure Phase 2 methods are attached to IdentityService
-import core_api.modules.identity.phase2 as _phase2  # noqa: F401
-from core_api.modules.identity.scim_router import router as scim_router
+from platform_kit.security import (
+    CurrentPrincipal,
+    clear_refresh_cookie,
+    deliver_refresh_token,
+    read_refresh_token,
+)
 
 router = SecureRouter(prefix="/auth", tags=["auth"])
 extra_routers = [scim_router]
@@ -47,6 +54,21 @@ def _login_key(request: Request) -> str:
     return f"login:{client_ip(request)}"
 
 
+def _deliver(tokens: TokenResponse, request: Request, response: Response) -> TokenResponse:
+    tokens.refresh_token = deliver_refresh_token(response, request.app.state.settings, tokens.refresh_token)
+    return tokens
+
+
+def _sso_response(result: SsoLoginResult, request: Request, response: Response) -> TokenResponse | RedirectResponse:
+    """Browser SSO: set the refresh cookie and bounce to the SPA, which then calls /auth/refresh."""
+    settings = request.app.state.settings
+    if not settings.frontend_url:
+        return _deliver(result.tokens, request, response)
+    redirect = RedirectResponse(f"{settings.frontend_url.rstrip('/')}{result.return_to}", status_code=303)
+    deliver_refresh_token(redirect, settings, result.tokens.refresh_token)
+    return redirect
+
+
 @router.post(
     "/register",
     permission=PUBLIC,
@@ -54,8 +76,10 @@ def _login_key(request: Request) -> str:
     status_code=201,
     dependencies=[Depends(rate_limit(limit=5, window_seconds=60, key_fn=_login_key))],
 )
-async def register(body: RegisterRequest, svc: IdentityServiceDep, request: Request) -> TokenResponse:
-    return await svc.register(body, ip=client_ip(request))
+async def register(
+    body: RegisterRequest, svc: IdentityServiceDep, request: Request, response: Response
+) -> TokenResponse:
+    return _deliver(await svc.register(body, ip=client_ip(request)), request, response)
 
 
 @router.post(
@@ -65,26 +89,40 @@ async def register(body: RegisterRequest, svc: IdentityServiceDep, request: Requ
     dependencies=[Depends(rate_limit(limit=10, window_seconds=60, key_fn=_login_key))],
 )
 async def login(
-    body: LoginRequest, svc: IdentityServiceDep, request: Request
+    body: LoginRequest, svc: IdentityServiceDep, request: Request, response: Response
 ) -> TokenResponse | TenantSelectionResponse | MfaRequiredResponse:
-    return await svc.login(body, ip=client_ip(request))
+    result = await svc.login(body, ip=client_ip(request))
+    if isinstance(result, TokenResponse):
+        return _deliver(result, request, response)
+    return result
 
 
 @router.post("/select-tenant", permission=PUBLIC, summary="Select tenant after multi-org login")
-async def select_tenant(body: SelectTenantRequest, svc: IdentityServiceDep, request: Request) -> TokenResponse:
-    return await svc.select_tenant(body.session_token, body.tenant_id, ip=client_ip(request))
+async def select_tenant(
+    body: SelectTenantRequest, svc: IdentityServiceDep, request: Request, response: Response
+) -> TokenResponse:
+    return _deliver(
+        await svc.select_tenant(body.session_token, body.tenant_id, ip=client_ip(request)), request, response
+    )
 
 
 @router.post("/refresh", permission=PUBLIC, summary="Rotate refresh token")
-async def refresh(body: dict, svc: IdentityServiceDep, request: Request) -> TokenResponse:
-    token = body.get("refresh_token") or request.cookies.get("refresh_token")
-    return await svc.refresh(str(token))
+async def refresh(
+    svc: IdentityServiceDep, request: Request, response: Response, body: RefreshRequest | None = None
+) -> TokenResponse:
+    token = read_refresh_token(request, request.app.state.settings, body.refresh_token if body else None)
+    if not token:
+        raise UnauthorizedError("Please sign in again.", detail="missing refresh token")
+    return _deliver(await svc.refresh(token), request, response)
 
 
 @router.post("/logout", permission=PUBLIC, summary="Revoke refresh token")
-async def logout(body: dict, svc: IdentityServiceDep, request: Request) -> dict[str, bool]:
-    token = body.get("refresh_token") or request.cookies.get("refresh_token")
-    await svc.logout(token, None)
+async def logout(
+    svc: IdentityServiceDep, request: Request, response: Response, body: RefreshRequest | None = None
+) -> dict[str, bool]:
+    settings = request.app.state.settings
+    await svc.logout(read_refresh_token(request, settings, body.refresh_token if body else None), None)
+    clear_refresh_cookie(response, settings)
     return {"ok": True}
 
 
@@ -99,9 +137,14 @@ async def list_tenants(svc: IdentityServiceDep, principal: CurrentPrincipal) -> 
     summary="Switch active tenant",
 )
 async def switch_tenant(
-    body: SwitchTenantRequest, svc: IdentityServiceDep, principal: CurrentPrincipal, request: Request
+    body: SwitchTenantRequest,
+    svc: IdentityServiceDep,
+    principal: CurrentPrincipal,
+    request: Request,
+    response: Response,
 ) -> TokenResponse:
-    return await svc.switch_tenant(UUID(principal.sub), body.tenant_id, ip=client_ip(request))
+    tokens = await svc.switch_tenant(UUID(principal.sub), body.tenant_id, ip=client_ip(request))
+    return _deliver(tokens, request, response)
 
 
 @router.post(
@@ -116,8 +159,10 @@ async def invite(body: InviteRequest, svc: IdentityServiceDep, principal: Curren
 
 
 @router.post("/invitations/accept", permission=PUBLIC, summary="Accept an invitation")
-async def accept_invite(body: AcceptInviteRequest, svc: IdentityServiceDep, request: Request) -> TokenResponse:
-    return await svc.accept_invite(body, ip=client_ip(request))
+async def accept_invite(
+    body: AcceptInviteRequest, svc: IdentityServiceDep, request: Request, response: Response
+) -> TokenResponse:
+    return _deliver(await svc.accept_invite(body, ip=client_ip(request)), request, response)
 
 
 @router.post(
@@ -138,6 +183,7 @@ async def disable_user(body: DisableUserRequest, svc: IdentityServiceDep, princi
 async def export_audit(
     svc: IdentityServiceDep,
     principal: CurrentPrincipal,
+    *,
     since: datetime | None = None,
     until: datetime | None = None,
     action: str | None = None,
@@ -158,8 +204,10 @@ async def mfa_confirm(body: MfaConfirmRequest, svc: IdentityServiceDep, principa
 
 
 @router.post("/mfa/complete", permission=PUBLIC, summary="Complete login after MFA challenge")
-async def mfa_complete(body: dict, svc: IdentityServiceDep, request: Request) -> TokenResponse:
-    return await svc.complete_mfa(str(body["mfa_token"]), str(body["code"]), ip=client_ip(request))
+async def mfa_complete(
+    body: MfaCompleteRequest, svc: IdentityServiceDep, request: Request, response: Response
+) -> TokenResponse:
+    return _deliver(await svc.complete_mfa(body.mfa_token, body.code, ip=client_ip(request)), request, response)
 
 
 @router.post("/sso/start", permission=PUBLIC, summary="Start per-tenant OIDC login")
@@ -167,9 +215,15 @@ async def sso_start(body: SsoStartRequest, svc: IdentityServiceDep) -> SsoStartR
     return await svc.sso_start(body.tenant_slug, body.return_to)
 
 
-@router.get("/sso/callback", permission=PUBLIC, summary="OIDC callback")
-async def sso_callback(code: str, state: str, svc: IdentityServiceDep, request: Request) -> TokenResponse:
-    return await svc.sso_callback(code, state, ip=client_ip(request))
+@router.get(
+    "/sso/callback",
+    permission=PUBLIC,
+    summary="OIDC callback (redirects to FRONTEND_URL when set)",
+    response_model=TokenResponse,
+)
+async def sso_callback(code: str, state: str, svc: IdentityServiceDep, request: Request, response: Response):
+    result = await svc.sso_callback(code, state, ip=client_ip(request))
+    return _sso_response(result, request, response)
 
 
 @router.put(

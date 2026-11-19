@@ -6,8 +6,9 @@ from platform_kit.config import DEFAULT_JWT_SECRET, Environment, ServiceSettings
 _SAFE_SECRET = SecretStr("a-real-secret-at-least-32-bytes-long!!")
 
 
-def test_dev_defaults_are_allowed() -> None:
-    s = ServiceSettings()
+def test_dev_defaults_are_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("ENV", raising=False)
+    s = ServiceSettings(_env_file=None)  # pyright: ignore[reportCallIssue]
     assert s.env == Environment.DEV
     assert s.jwt_secret.get_secret_value() == DEFAULT_JWT_SECRET
 

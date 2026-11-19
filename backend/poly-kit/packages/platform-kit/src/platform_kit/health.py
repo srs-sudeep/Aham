@@ -27,4 +27,6 @@ async def ready(request: Request) -> JSONResponse:
         except Exception as exc:
             results[name] = f"fail: {type(exc).__name__}"
     healthy = all(v == "ok" for v in results.values())
-    return JSONResponse({"status": "ok" if healthy else "degraded", "checks": results}, status_code=200 if healthy else 503)
+    return JSONResponse(
+        {"status": "ok" if healthy else "degraded", "checks": results}, status_code=200 if healthy else 503
+    )

@@ -18,12 +18,12 @@ def test_api_key_roundtrip_hash() -> None:
 
 
 def test_totp_verify() -> None:
-    import pyotp
+    from pyotp.totp import TOTP
 
     secret = generate_totp_secret()
     uri = provisioning_uri(secret=secret, email="a@b.com")
     assert "otpauth://" in uri
-    code = pyotp.TOTP(secret).now()
+    code = TOTP(secret).now()
     assert verify_totp(secret, code)
 
 

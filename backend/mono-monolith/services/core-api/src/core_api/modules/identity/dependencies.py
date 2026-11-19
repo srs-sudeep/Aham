@@ -16,8 +16,6 @@ from platform_kit.security import TokenIssuer
 
 
 def get_identity_service(session: SessionDep, request: Request) -> IdentityService:
-    import core_api.modules.identity.phase2 as _phase2  # noqa: F401
-
     settings = request.app.state.settings
     redis: RedisClient = request.app.state.redis
     issuer: TokenIssuer = request.app.state.token_issuer
@@ -27,9 +25,9 @@ def get_identity_service(session: SessionDep, request: Request) -> IdentityServi
     audit = Audit(audit_writer) if audit_writer else Audit()
     svc = IdentityService(
         IdentityRepository(session),
-        settings,
-        issuer,
-        redis,
+        settings=settings,
+        issuer=issuer,
+        redis=redis,
         audit=audit,
         email=LoggingEmailSender(),
     )

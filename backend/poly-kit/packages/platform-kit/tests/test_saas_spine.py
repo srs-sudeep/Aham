@@ -8,9 +8,9 @@ import pytest
 
 from platform_kit.config import Environment, ServiceSettings
 from platform_kit.entitlements import EntitlementSnapshot
+from platform_kit.errors import ForbiddenError
 from platform_kit.security import Principal
 from platform_kit.tenancy import assert_same_tenant, enable_rls_sql, require_tenant
-from platform_kit.errors import ForbiddenError
 
 
 def test_principal_has_permission_wildcards() -> None:

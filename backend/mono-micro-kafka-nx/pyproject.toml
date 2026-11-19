@@ -22,6 +22,7 @@ dev = [
   # type-check the kit (a kit-only repo installs no service that would pull them in).
   "platform-kit[kafka]",
   "platform-kit[otel]",
+  "platform-kit[saas]",
   "pytest-cov>=6.0",
   "ruff>=0.8",
   "pyright>=1.1.390",

@@ -1,0 +1,57 @@
+# -*- mode: Python -*-
+# Local dev dashboard (https://tilt.dev):  tilt up            -> http://localhost:10350
+#   Infra (Postgres, Redis) runs in Docker from compose.yaml.
+#   Services run natively via `dx run` (uvicorn --reload), so edits apply instantly.
+# Options:  tilt up -- --services core-api            run a subset
+#           tilt up -- --frontend ../my-web           also run the SPA (pnpm dev) from a sibling repo
+#           tilt up -- --observability                add Jaeger (http://localhost:16686)
+# `uv run dx up` remains the all-containers path (closer to production).
+
+config.define_string_list("services", usage="services to run (default: all)")
+config.define_string("frontend", usage="path to the SPA repo to run with `pnpm dev`")
+config.define_bool("observability", usage="start Jaeger and export traces")
+cfg = config.parse()
+
+observability = cfg.get("observability", False)
+docker_compose("compose.yaml", profiles=["observability"] if observability else [])
+
+dc_resource("postgres", labels=["infra"])
+dc_resource("redis", labels=["infra"])
+if observability:
+    dc_resource("jaeger", labels=["infra"])
+
+infra = ["postgres", "redis"]
+env = {"ENV": "dev"}
+if observability:
+    env["OTEL_ENABLED"] = "true"
+
+available = decode_json(str(local("uv run --quiet dx services --json", quiet=True)))
+selected = cfg.get("services", []) or available
+
+for name in selected:
+    if name not in available:
+        fail("unknown service %r (known: %s)" % (name, ", ".join(available)))
+    local_resource(
+        "migrate-" + name,
+        cmd="uv run dx db upgrade " + name,
+        resource_deps=infra,
+        labels=["migrations"],
+    )
+    local_resource(
+        name,
+        serve_cmd="uv run dx run " + name,
+        serve_env=env,
+        resource_deps=infra + ["migrate-" + name],
+        labels=["services"],
+    )
+
+frontend = cfg.get("frontend", "")
+if frontend:
+    local_resource(
+        "web",
+        serve_cmd="pnpm dev",
+        serve_dir=frontend,
+        resource_deps=selected,
+        links=["http://localhost:5173"],
+        labels=["frontend"],
+    )

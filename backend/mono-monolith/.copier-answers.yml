@@ -1,13 +1,15 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_src_path: /Users/srs/Desktop/Dev/SASS/fastapi-platform-template-and-cases/1-template
+_src_path: ../../template
 ai_tools:
 - claude
 - cursor
 architecture: monolith
 first_service: core-api
 messaging: none
+platform_profile: saas
 project_name: My Platform
 project_slug: my-platform
 python_version: '3.12'
 repo_layout: monorepo
 repo_manager: none
+stack: backend

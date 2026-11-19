@@ -31,7 +31,13 @@ def setup_telemetry(app: FastAPI, settings: ServiceSettings, engine: Any) -> Non
         return
 
     provider = TracerProvider(
-        resource=Resource.create({"service.name": settings.service_name, "service.version": settings.version, "deployment.environment": settings.env.value})
+        resource=Resource.create(
+            {
+                "service.name": settings.service_name,
+                "service.version": settings.version,
+                "deployment.environment": settings.env.value,
+            }
+        )
     )
     provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=settings.otel_endpoint)))
     trace.set_tracer_provider(provider)

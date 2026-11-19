@@ -14,12 +14,16 @@ class PlanOut(BaseModel):
 
 
 class ActivateSubscriptionRequest(BaseModel):
+    """Operator action: target any tenant."""
+
     tenant_id: UUID
     plan_code: str
     grace_days: int = 3
 
 
 class OverrideRequest(BaseModel):
+    """Operator action: sales/support override for any tenant."""
+
     tenant_id: UUID
     feature_key: str
     enabled: bool | None = None
@@ -38,7 +42,8 @@ class SubscriptionOut(BaseModel):
 
 
 class CheckoutRequest(BaseModel):
-    tenant_id: UUID
+    """Self-service: always for the caller's own tenant (token `tid`)."""
+
     plan_code: str
 
 

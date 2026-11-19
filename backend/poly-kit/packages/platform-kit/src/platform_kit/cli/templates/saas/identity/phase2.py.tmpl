@@ -1,11 +1,10 @@
-"""Phase 2: OIDC SSO, SCIM, API keys, MFA — extends IdentityService."""
+"""Phase 2: OIDC SSO, SCIM, API keys, MFA — base class of IdentityService."""
 
 from __future__ import annotations
 
-import json
-import secrets
+import hashlib
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -17,7 +16,6 @@ from $package.modules.identity.models import (
     Membership,
     Role,
     ScimToken,
-    Tenant,
     User,
     UserMfa,
 )
@@ -25,21 +23,39 @@ from $package.modules.identity.schemas import (
     CreateApiKeyResponse,
     MfaEnrollResponse,
     ScimTokenResponse,
+    SsoLoginResult,
     SsoStartResponse,
     TokenResponse,
     UpsertOidcConnectionRequest,
 )
-from $package.modules.identity.service import IdentityService, _hash, _pair_to_response
 from platform_kit.api_keys import hash_api_key, issue_api_key
+from platform_kit.errors import expect
 from platform_kit.mfa import generate_recovery_codes, generate_totp_secret, provisioning_uri, require_totp
 from platform_kit.oidc import OidcAuthFederator
 from platform_kit.security import Principal
 
+if TYPE_CHECKING:
+    from $package.modules.identity.repository import IdentityRepository
+    from platform_kit.audit import Audit
+    from platform_kit.config import ServiceSettings
+    from platform_kit.redis import RedisClient
+
 
 class Phase2Mixin:
-    """Mixin methods for IdentityService (SSO / SCIM / API keys / MFA)."""
+    """SSO / SCIM / API keys / MFA. `IdentityService` inherits this and provides the state below."""
 
-    async def complete_mfa(self: IdentityService, mfa_token: str, code: str, *, ip: str | None = None) -> TokenResponse:
+    repo: IdentityRepository
+    settings: ServiceSettings
+    redis: RedisClient
+    audit: Audit
+
+    async def _issue_for_membership(self, user: User, tenant_id: UUID, role: Role) -> TokenResponse:
+        raise NotImplementedError
+
+    async def _perms(self, role: Role) -> list[str]:
+        raise NotImplementedError
+
+    async def complete_mfa(self, mfa_token: str, code: str, *, ip: str | None = None) -> TokenResponse:
         uid = await self.redis.get(f"mfa_pending:{mfa_token}")
         if not uid:
             raise InvalidCredentialsError(detail="mfa session expired")
@@ -58,7 +74,7 @@ class Phase2Mixin:
         await self.audit.record("auth.mfa.success", actor_id=user.id, tenant_id=tenant.id, ip=ip)
         return await self._issue_for_membership(user, tenant.id, role)
 
-    async def enroll_mfa(self: IdentityService, user_id: UUID) -> MfaEnrollResponse:
+    async def enroll_mfa(self, user_id: UUID) -> MfaEnrollResponse:
         user = await self.repo.get(user_id)
         if user is None:
             raise InvalidCredentialsError()
@@ -67,14 +83,14 @@ class Phase2Mixin:
         existing = await self.repo.session.scalar(select(UserMfa).where(UserMfa.user_id == user_id))
         if existing:
             existing.totp_secret = secret
-            existing.recovery_hashes = [_hash(c) for c in codes]
+            existing.recovery_hashes = [_sha256(c) for c in codes]
             existing.confirmed = False
         else:
             self.repo.session.add(
                 UserMfa(
                     user_id=user_id,
                     totp_secret=secret,
-                    recovery_hashes=[_hash(c) for c in codes],
+                    recovery_hashes=[_sha256(c) for c in codes],
                     confirmed=False,
                 )
             )
@@ -85,7 +101,7 @@ class Phase2Mixin:
             recovery_codes=codes,
         )
 
-    async def confirm_mfa(self: IdentityService, user_id: UUID, code: str) -> None:
+    async def confirm_mfa(self, user_id: UUID, code: str) -> None:
         mfa = await self.repo.session.scalar(select(UserMfa).where(UserMfa.user_id == user_id))
         if mfa is None:
             raise InvalidCredentialsError(detail="enroll first")
@@ -97,24 +113,20 @@ class Phase2Mixin:
         await self.repo.commit()
         await self.audit.record("auth.mfa.enrolled", actor_id=user_id)
 
-    async def upsert_oidc_connection(
-        self: IdentityService, tenant_id: UUID, body: UpsertOidcConnectionRequest
-    ) -> None:
+    async def upsert_oidc_connection(self, tenant_id: UUID, body: UpsertOidcConnectionRequest) -> None:
         row = await self.repo.session.scalar(
             select(AuthConnection).where(AuthConnection.tenant_id == tenant_id, AuthConnection.type == "oidc")
         )
         meta = body.model_dump()
         enabled = meta.pop("enabled", True)
         if row is None:
-            self.repo.session.add(
-                AuthConnection(tenant_id=tenant_id, type="oidc", metadata_json=meta, enabled=enabled)
-            )
+            self.repo.session.add(AuthConnection(tenant_id=tenant_id, type="oidc", metadata_json=meta, enabled=enabled))
         else:
             row.metadata_json = meta
             row.enabled = enabled
         await self.repo.commit()
 
-    async def sso_start(self: IdentityService, tenant_slug: str, return_to: str) -> SsoStartResponse:
+    async def sso_start(self, tenant_slug: str, return_to: str) -> SsoStartResponse:
         tenant = await self.repo.get_tenant_by_slug(tenant_slug)
         if tenant is None:
             raise MembershipNotFoundError(detail="tenant not found")
@@ -132,12 +144,13 @@ class Phase2Mixin:
         url = await fed.start_login(tenant.id, return_to, connection=conn.metadata_json, redirect_uri=redirect)
         return SsoStartResponse(authorize_url=url)
 
-    async def sso_callback(self: IdentityService, code: str, state: str, *, ip: str | None = None) -> TokenResponse:
+    async def sso_callback(self, code: str, state: str, *, ip: str | None = None) -> SsoLoginResult:
         # Resolve tenant from state first (stored as tenant|return_to)
         raw = await self.redis.get(f"oidc_state:{state}")
         if not raw:
             raise InvalidCredentialsError(detail="sso state expired")
-        tenant_id = UUID(raw.split("|", 1)[0])
+        tenant_part, _, return_to = raw.partition("|")
+        tenant_id = UUID(tenant_part)
         conn = await self.repo.session.scalar(
             select(AuthConnection).where(AuthConnection.tenant_id == tenant_id, AuthConnection.type == "oidc")
         )
@@ -158,23 +171,19 @@ class Phase2Mixin:
             user.external_sub = info["external_sub"]
         membership = await self.repo.get_membership(user.id, tenant_id)
         if membership is None:
-            role = await self.repo.get_system_role("member")
-            assert role is not None
+            role = expect(await self.repo.get_system_role("member"), "role")
             self.repo.session.add(Membership(user_id=user.id, tenant_id=tenant_id, role_id=role.id, status="active"))
             await self.repo.session.flush()
             membership = await self.repo.get_membership(user.id, tenant_id)
-        assert membership is not None
-        role = await self.repo.session.get(Role, membership.role_id)
-        assert role is not None
+        membership = expect(membership, "membership")
+        role = expect(await self.repo.session.get(Role, membership.role_id), "role")
         await self.repo.commit()
         await self.audit.record("auth.sso.success", actor_id=user.id, tenant_id=tenant_id, ip=ip)
-        return await self._issue_for_membership(user, tenant_id, role)
+        tokens = await self._issue_for_membership(user, tenant_id, role)
+        return SsoLoginResult(tokens=tokens, return_to=_safe_return_to(return_to))
 
-    async def create_api_key(
-        self: IdentityService, tenant_id: UUID, name: str, role_name: str
-    ) -> CreateApiKeyResponse:
-        role = await self.repo.get_system_role(role_name) or await self.repo.get_system_role("member")
-        assert role is not None
+    async def create_api_key(self, tenant_id: UUID, name: str, role_name: str) -> CreateApiKeyResponse:
+        role = expect(await self.repo.get_system_role(role_name) or await self.repo.get_system_role("member"), "role")
         issued = issue_api_key()
         row = ApiKey(
             tenant_id=tenant_id,
@@ -188,21 +197,20 @@ class Phase2Mixin:
         await self.audit.record("identity.api_key.create", tenant_id=tenant_id, target=name)
         return CreateApiKeyResponse(id=row.id, name=name, prefix=issued.prefix, raw_key=issued.raw)
 
-    async def revoke_api_key(self: IdentityService, tenant_id: UUID, key_id: UUID) -> None:
+    async def revoke_api_key(self, tenant_id: UUID, key_id: UUID) -> None:
         row = await self.repo.session.get(ApiKey, key_id)
         if row is None or row.tenant_id != tenant_id:
             raise MembershipNotFoundError(detail="api key not found")
         row.revoked_at = datetime.now(UTC)
         await self.repo.commit()
 
-    async def lookup_api_key(self: IdentityService, raw: str) -> Principal:
+    async def lookup_api_key(self, raw: str) -> Principal:
         digest = hash_api_key(raw)
         row = await self.repo.session.scalar(select(ApiKey).where(ApiKey.key_hash == digest))
         if row is None or row.revoked_at is not None:
             raise InvalidCredentialsError(detail="invalid api key")
         # constant-time compare already via hash lookup uniqueness
-        role = await self.repo.session.get(Role, row.role_id)
-        assert role is not None
+        role = expect(await self.repo.session.get(Role, row.role_id), "role")
         perms = await self._perms(role)
         return Principal(
             sub=f"key:{row.id}",
@@ -212,7 +220,7 @@ class Phase2Mixin:
             kind="api_key",
         )
 
-    async def issue_scim_token(self: IdentityService, tenant_id: UUID) -> ScimTokenResponse:
+    async def issue_scim_token(self, tenant_id: UUID) -> ScimTokenResponse:
         issued = issue_api_key(prefix="scim")
         existing = await self.repo.session.scalar(select(ScimToken).where(ScimToken.tenant_id == tenant_id))
         if existing:
@@ -223,14 +231,14 @@ class Phase2Mixin:
         await self.repo.commit()
         return ScimTokenResponse(prefix=issued.prefix, raw_token=issued.raw)
 
-    async def resolve_scim_tenant(self: IdentityService, bearer: str) -> UUID:
+    async def resolve_scim_tenant(self, bearer: str) -> UUID:
         digest = hash_api_key(bearer)
         row = await self.repo.session.scalar(select(ScimToken).where(ScimToken.token_hash == digest))
         if row is None:
             raise InvalidCredentialsError(detail="invalid scim token")
         return row.tenant_id
 
-    async def scim_upsert_user(self: IdentityService, tenant_id: UUID, payload: dict[str, Any]) -> dict[str, Any]:
+    async def scim_upsert_user(self, tenant_id: UUID, payload: dict[str, Any]) -> dict[str, Any]:
         emails = payload.get("emails") or []
         email = None
         for e in emails:
@@ -257,8 +265,7 @@ class Phase2Mixin:
             user.status = "active" if active else "disabled"
         membership = await self.repo.get_membership(user.id, tenant_id)
         if membership is None and active:
-            role = await self.repo.get_system_role("member")
-            assert role is not None
+            role = expect(await self.repo.get_system_role("member"), "role")
             self.repo.session.add(Membership(user_id=user.id, tenant_id=tenant_id, role_id=role.id, status="active"))
         elif membership is not None and not active:
             membership.status = "revoked"
@@ -273,7 +280,7 @@ class Phase2Mixin:
             "emails": [{"value": email, "primary": True}],
         }
 
-    async def scim_deactivate(self: IdentityService, tenant_id: UUID, user_id: str) -> None:
+    async def scim_deactivate(self, tenant_id: UUID, user_id: str) -> None:
         user = await self.repo.get(UUID(user_id))
         if user is None:
             raise MembershipNotFoundError()
@@ -286,7 +293,10 @@ class Phase2Mixin:
         await self.audit.record("identity.scim.deactivate", tenant_id=tenant_id, target=user_id)
 
 
-# Attach mixin methods onto IdentityService
-for _name, _fn in Phase2Mixin.__dict__.items():
-    if callable(_fn) and not _name.startswith("_"):
-        setattr(IdentityService, _name, _fn)
+def _sha256(raw: str) -> str:
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _safe_return_to(value: str) -> str:
+    """Only same-app relative paths; never an open redirect."""
+    return value if value.startswith("/") and not value.startswith("//") else "/"

@@ -40,7 +40,7 @@ class StripePaymentProvider:
         self.on_past_due = on_past_due
 
     def _stripe(self) -> Any:
-        import stripe
+        import stripe  # pyright: ignore[reportMissingImports]  # optional extra: platform-kit[stripe]
 
         stripe.api_key = self.api_key
         return stripe
@@ -67,7 +67,7 @@ class StripePaymentProvider:
             raise BadRequestError(detail="missing Stripe-Signature")
         try:
             event = stripe.Webhook.construct_event(body, sig, self.webhook_secret)
-        except Exception as exc:  # noqa: BLE001 - stripe raises assorted types
+        except Exception as exc:
             raise BadRequestError(detail=f"invalid stripe webhook: {exc}") from exc
 
         etype = event["type"]

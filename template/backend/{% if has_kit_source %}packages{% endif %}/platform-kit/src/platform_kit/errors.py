@@ -28,6 +28,7 @@ from typing import Any, ClassVar
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+
 # This module is what turns HTTPException into the standard envelope, so it has to
 # import the class that services are banned from raising (ruff TID251 / dx check ERR001).
 from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: TID251
@@ -117,6 +118,13 @@ class PaymentRequiredError(AppError):
     status_code = 402
     code = "payment_required"
     message = "This action requires an active subscription."
+
+
+def expect[T](value: T | None, what: str) -> T:
+    """Narrow a value that must exist (seeded row, row just written). Unlike `assert`, survives `python -O`."""
+    if value is None:
+        raise AppError(detail=f"invariant violated: {what} is missing")
+    return value
 
 
 # ── envelope ────────────────────────────────────────────────────────────────

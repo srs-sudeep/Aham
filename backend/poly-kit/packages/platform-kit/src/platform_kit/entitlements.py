@@ -30,9 +30,7 @@ class EntitlementSnapshot(BaseModel):
         now = now or datetime.now(UTC)
         if self.status in ("active", "trialing"):
             return True
-        if self.status == "past_due" and self.grace_until and self.grace_until > now:
-            return True
-        return False
+        return self.status == "past_due" and self.grace_until is not None and self.grace_until > now
 
     def has_feature(self, key: str) -> bool:
         return bool(self.features.get(key))
@@ -52,7 +50,9 @@ class RedisEntitlementStore:
 
     NAMESPACE = "entitlements"
 
-    def __init__(self, redis: RedisClient, loader: Callable[[str], Awaitable[EntitlementSnapshot | None]] | None = None) -> None:
+    def __init__(
+        self, redis: RedisClient, loader: Callable[[str], Awaitable[EntitlementSnapshot | None]] | None = None
+    ) -> None:
         self.redis = redis
         self.loader = loader
 

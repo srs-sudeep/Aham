@@ -16,9 +16,15 @@ services:
       KAFKA_ENABLED: "false"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       OTEL_ENDPOINT: http://jaeger:4317
+      PLATFORM_PROFILE: saas
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: '${CORS_ORIGINS:-["http://localhost:5173", "http://localhost:8080"]}'
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     ports:
       - "8001:8000"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped

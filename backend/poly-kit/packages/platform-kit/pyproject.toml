@@ -35,7 +35,7 @@ saas = [
   "pyotp>=2.9",
 ]
 stripe = ["stripe>=11.0"]
-testing = ["pytest>=8.3", "pytest-asyncio>=0.24", "aiosqlite>=0.20"]
+testing = ["pytest>=8.3", "pytest-asyncio>=0.24", "aiosqlite>=0.20", "fakeredis>=2.26"]
 
 [project.scripts]
 dx = "platform_kit.cli.main:main"

@@ -15,7 +15,7 @@ from uuid import UUID
 import anyio
 import jwt
 import structlog
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Response
 from pydantic import BaseModel, Field
 
 from platform_kit.config import ServiceSettings
@@ -43,7 +43,7 @@ class Principal(BaseModel):
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105
     expires_in: int
     tenant_id: str | None = None
 
@@ -91,7 +91,7 @@ class TokenVerifier:
             roles=roles,
             permissions=frozenset(perms),
             ver=int(claims.get("ver") or 0),
-            kind=kind,  # type: ignore[arg-type]
+            kind=kind,
             claims=claims,
         )
 
@@ -146,7 +146,7 @@ class TokenIssuer:
         family: str | None = None,
     ) -> TokenPair:
         access = self.issue_access(sub=sub, tid=tid, roles=roles, permissions=permissions, ver=ver)
-        refresh, family_id = await self._store_refresh(sub=sub, tid=str(tid), ver=ver, family=family)
+        refresh, _family = await self._store_refresh(sub=sub, tid=str(tid), ver=ver, family=family)
         return TokenPair(
             access_token=access,
             refresh_token=refresh,
@@ -181,9 +181,7 @@ class TokenIssuer:
             digest = key.rsplit(":", 1)[-1]
             await client.delete(key, f"refresh:{digest}", f"refresh_meta:{digest}")
 
-    async def _store_refresh(
-        self, *, sub: str, tid: str, ver: int, family: str | None
-    ) -> tuple[str, str]:
+    async def _store_refresh(self, *, sub: str, tid: str, ver: int, family: str | None) -> tuple[str, str]:
         family_id = family or secrets.token_urlsafe(16)
         raw = secrets.token_urlsafe(48)
         digest = _hash_token(raw)
@@ -197,6 +195,42 @@ class TokenIssuer:
 
 def _hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _refresh_cookie_path(settings: ServiceSettings) -> str:
+    return f"{settings.api_prefix.rstrip('/')}/auth"
+
+
+def deliver_refresh_token(response: Response, settings: ServiceSettings, refresh_token: str | None) -> str | None:
+    """Apply `token_delivery`: set the httpOnly refresh cookie and/or keep it in the JSON body.
+
+    Returns the value to place in the response body (None when delivery is cookie-only).
+    """
+    if refresh_token and settings.token_delivery in ("cookie", "both"):
+        response.set_cookie(
+            settings.refresh_cookie_name,
+            refresh_token,
+            max_age=settings.refresh_token_ttl_seconds,
+            httponly=True,
+            secure=settings.refresh_cookie_secure,
+            samesite=settings.refresh_cookie_samesite,
+            path=_refresh_cookie_path(settings),
+        )
+    return refresh_token if settings.token_delivery in ("body", "both") else None
+
+
+def clear_refresh_cookie(response: Response, settings: ServiceSettings) -> None:
+    response.delete_cookie(
+        settings.refresh_cookie_name,
+        path=_refresh_cookie_path(settings),
+        secure=settings.refresh_cookie_secure,
+        httponly=True,
+        samesite=settings.refresh_cookie_samesite,
+    )
+
+
+def read_refresh_token(request: Request, settings: ServiceSettings, body_token: str | None) -> str | None:
+    return body_token or request.cookies.get(settings.refresh_cookie_name)
 
 
 def _claim_str_list(value: Any, claim: str) -> list[str]:

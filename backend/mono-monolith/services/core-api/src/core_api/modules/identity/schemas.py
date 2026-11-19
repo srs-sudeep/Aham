@@ -36,6 +36,11 @@ class MfaConfirmRequest(BaseModel):
     code: str
 
 
+class MfaCompleteRequest(BaseModel):
+    mfa_token: str
+    code: str
+
+
 class SsoStartRequest(BaseModel):
     tenant_slug: str
     return_to: str = "/"
@@ -89,9 +94,14 @@ class RefreshRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str | None = None
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105
     expires_in: int
     tenant_id: UUID | None = None
+
+
+class SsoLoginResult(BaseModel):
+    tokens: TokenResponse
+    return_to: str = "/"
 
 
 class TenantSelectionResponse(BaseModel):

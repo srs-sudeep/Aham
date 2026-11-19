@@ -104,6 +104,7 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
+
 class BaseRepository[ModelT: Base]:
     """Generic CRUD helpers. Subclass per module and add query methods there."""
 

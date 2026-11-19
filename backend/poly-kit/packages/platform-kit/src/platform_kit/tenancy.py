@@ -18,13 +18,20 @@ from platform_kit.errors import ForbiddenError
 from platform_kit.security import CurrentPrincipal, Principal
 
 
+def _supports_rls(session: AsyncSession) -> bool:
+    # SQLite (local tests, API fuzzing) has no set_config/RLS; app-level tenant filters still apply.
+    return session.get_bind().dialect.name == "postgresql"
+
+
 async def set_tenant_rls(session: AsyncSession, tenant_id: uuid.UUID | str) -> None:
     """Bind the DB session to a tenant for Postgres RLS (transaction-local)."""
-    await session.execute(text("SELECT set_config('app.tenant_id', :tid, true)"), {"tid": str(tenant_id)})
+    if _supports_rls(session):
+        await session.execute(text("SELECT set_config('app.tenant_id', :tid, true)"), {"tid": str(tenant_id)})
 
 
 async def clear_tenant_rls(session: AsyncSession) -> None:
-    await session.execute(text("SELECT set_config('app.tenant_id', '', true)"))
+    if _supports_rls(session):
+        await session.execute(text("SELECT set_config('app.tenant_id', '', true)"))
 
 
 def require_tenant(principal: Principal) -> uuid.UUID:
@@ -47,6 +54,26 @@ async def bind_tenant_context(principal: CurrentPrincipal, request: Request) -> 
 
 
 TenantIdDep = Annotated[uuid.UUID, Depends(bind_tenant_context)]
+
+
+async def require_platform_operator(principal: CurrentPrincipal, request: Request) -> Principal:
+    """Dependency: the caller acts for the platform, not for its own tenant.
+
+    Tenant admins hold `*` inside their tenant, so a permission alone cannot separate them
+    from operators. Operators are users signed into PLATFORM_OPERATOR_TENANT_ID.
+    """
+    settings = request.app.state.settings
+    operator_tid = settings.platform_operator_tenant_id
+    if operator_tid is None:
+        if settings.is_dev:
+            return principal
+        raise ForbiddenError(detail="PLATFORM_OPERATOR_TENANT_ID is not configured")
+    if principal.kind != "user" or principal.tid != str(operator_tid):
+        raise ForbiddenError(detail="platform operator required")
+    return principal
+
+
+PlatformOperatorDep = Annotated[Principal, Depends(require_platform_operator)]
 
 
 def assert_same_tenant(resource_tenant_id: uuid.UUID | str, principal: Principal) -> None:
