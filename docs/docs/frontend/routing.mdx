@@ -1,0 +1,34 @@
+---
+title: Routing
+sidebar_position: 5
+---
+
+# Routing
+
+TanStack Router. Core routes are **protected** under `core/` — do not reinvent.
+
+## Route table
+
+| Path | Permission | Source |
+|---|---|---|
+| `/login` | `public` | `core/auth` |
+| `/forbidden` | — | `router.tsx` |
+| `/` | `public` | `core/home` (dashboard) |
+| `/settings` | `public` | `core/settings` |
+| `/catalog/items` | `items:list` | catalog/items |
+| `/catalog/items/new` | `items:create` | catalog/items |
+| `/catalog/items/$itemId` | `items:read` | catalog/items |
+| `/catalog/items/$itemId/edit` | `items:update` | catalog/items |
+| `/catalog/categories` | `categories:list` | catalog/categories |
+| `/catalog/categories/$categoryId` | `categories:read` | catalog/categories |
+| (miss) | — | `notFoundComponent` |
+
+## Guards
+
+1. `/login` redirects away if token present
+2. Authenticated layout requires `token` + `principal`
+3. Feature routes: `context.auth.can(permission)` → else `/forbidden`
+
+## Navigation
+
+`core/shell/nav.ts` builds groups: Home (0) → module groups (catalog order 20) → Settings (10000). Filtered by `can()`.

@@ -97,15 +97,17 @@ const config: Config = {
         {
           title: 'Stacks',
           items: [
-            {label: 'Backend', to: '/docs/backend/overview'},
-            {label: 'Frontend', to: '/docs/frontend/overview'},
-            {label: 'SaaS spine', to: '/docs/backend/saas-spine'},
+            {label: 'Backend API reference', to: '/docs/backend/api-reference'},
+            {label: 'Frontend modules', to: '/docs/frontend/modules'},
+            {label: 'SaaS auth', to: '/docs/frontend/auth'},
+            {label: 'Configuration', to: '/docs/backend/configuration'},
           ],
         },
         {
           title: 'Repo',
           items: [
-            {label: 'Root README', href: 'https://github.com'},
+            {label: 'Meta-repo workflow', to: '/docs/getting-started/meta-repo'},
+            {label: 'Example drift', to: '/docs/template/example-drift'},
             {label: 'HANDOFF', to: '/docs/template/handoff'},
           ],
         },

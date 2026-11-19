@@ -1,0 +1,35 @@
+---
+title: Tenancy
+sidebar_position: 11
+---
+
+# Tenancy
+
+SaaS tenants are first-class: JWT claim `tid`, memberships, switch-tenant, RLS helpers.
+
+## Kit APIs
+
+| Symbol | Role |
+|---|---|
+| `TenantScopedMixin` | Adds `tenant_id` column to models |
+| `TenantIdDep` | FastAPI dep — requires tenant on principal |
+| `bind_tenant_context` | Sets request tenant |
+| `PlatformOperatorDep` | Allows cross-tenant ops when operator tenant matches |
+| `set_tenant_rls` / `clear_tenant_rls` | Session GUC for Postgres RLS |
+| `assert_same_tenant` | IDOR guard |
+| `enable_rls_sql` | SQL helper to enable policies |
+
+## Request flow
+
+1. Access JWT includes `tid` after login / select-tenant / switch-tenant
+2. Handlers depend on `TenantIdDep` for tenant-owned resources
+3. Repositories filter / RLS enforces defense in depth
+4. Platform operators (`PLATFORM_OPERATOR_TENANT_ID`) can mutate billing across tenants where marked
+
+## Frontend pairing
+
+SPA stores `aham.tenant.id` and sends tenant context for MSW; SaaS mode derives tenant from principal JWT + switch-tenant API.
+
+## TEN001
+
+`dx check` fails if tenant-scoped tables are used without binding tenant context (unless `# dx: cross-tenant`).

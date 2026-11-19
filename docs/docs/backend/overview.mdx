@@ -5,24 +5,24 @@ sidebar_position: 1
 
 # Backend overview
 
-Aham backends are **FastAPI** services built on a shared **platform-kit**. You rarely invent infrastructure — you add **modules** with a fixed layering and let `dx` / CI enforce it.
+FastAPI services on a shared **platform-kit**. Product code = **modules** with fixed layers; infrastructure stays in the kit.
 
-## Shared stack
+## Stack
 
 | Layer | Choice |
 |---|---|
-| Language | Python 3.12+ |
+| Language | Python ≥ 3.12 |
 | HTTP | FastAPI + Uvicorn |
-| ORM / DB | SQLAlchemy 2 async + asyncpg + Alembic |
-| Settings | Pydantic Settings |
+| ORM | SQLAlchemy 2 async + asyncpg + Alembic |
+| Settings | Pydantic Settings (`ServiceSettings`) |
 | Logging | structlog |
-| Auth | JWT (PyJWT); SaaS adds refresh tokens in Redis |
-| Messaging | Optional Kafka via FastStream + transactional outbox |
-| Tooling | uv workspaces, Ruff, Pyright, pytest, `dx` CLI (argparse) |
-| Observability | OpenTelemetry extras + optional Jaeger |
-| Deploy shape | Docker image + Compose (no Kubernetes in template) |
+| Auth | JWT (HS256 or JWKS); SaaS: TokenIssuer + Redis refresh |
+| Messaging | Optional Kafka + FastStream + transactional outbox |
+| Tooling | uv, Ruff, Pyright, pytest, `dx` (argparse CLI) |
+| Observability | OTel extras + Jaeger Compose profile |
+| Deploy | Docker + Compose (no K8s in template) |
 
-## Entrypoint pattern
+## Entrypoint
 
 ```python
 app = create_app(
@@ -32,35 +32,26 @@ app = create_app(
 )
 ```
 
-Routers are auto-discovered from `modules/*/router.py` (plus optional `extra_routers`) and mounted under **`/api/v1`**.
+- Discovers `modules/*/router.py` (+ `extra_routers`)
+- Mounts under **`/api/v1`**
+- Health (unprefixed): `/health/live`, `/health/ready`
+- Host port in examples: **8001 → 8000**
 
-| Health | Path |
+## Section map
+
+| Page | Contents |
 |---|---|
-| Liveness | `/health/live` |
-| Readiness | `/health/ready` (503 when dependencies are degraded) |
-
-OpenAPI UI: `http://localhost:8001/docs` (host port **8001 → 8000** in every example).
-
-## Repo shapes at a glance
-
-See [Layouts & variants](./layouts.mdx) for the full matrix. Short version:
-
-- **Monolith** — one service, many modules
-- **Microservices** — many services, shared kit (+ contracts when Kafka)
-- **Polyrepo kit** — publishes the baseline
-- **Polyrepo service** — one service, kit pinned by git/path
-
-:::note
-Shipped micro examples (`mono-micro-kafka-nx`, `mono-micro-moon`) currently contain a **single** `core-api` with the `items` module. Extra services appear after regenerating with the right Copier answers (e.g. SaaS micro → `identity` + `billing` services).
-:::
-
-## Core docs in this section
-
-- [Architecture](./architecture.mdx) — layering and import rules
-- [Platform kit](./platform-kit.mdx) — what the baseline owns
-- [Modules](./modules.mdx) — how to add features
-- [SaaS spine](./saas-spine.mdx) — identity, tenancy, billing
-- [Messaging](./messaging.mdx) — Kafka + outbox
-- [dx CLI](./dx-cli.mdx) — everyday commands
-- [Testing & CI](./testing-ci.mdx)
-- [Examples](./examples.mdx) — folders under `backend/`
+| [Architecture](./architecture.mdx) | Layers, imports, errors, logging |
+| [Layouts](./layouts.mdx) | Variant matrix |
+| [Platform kit](./platform-kit.mdx) | Module inventory + extras |
+| [Modules](./modules.mdx) | `dx new-module` contract |
+| [API reference](./api-reference.mdx) | Full route tables (mono-monolith) |
+| [Configuration](./configuration.mdx) | Every `ServiceSettings` env var |
+| [Permissions](./permissions.mdx) | Resources, roles, TEN001 |
+| [Data model](./data-model.mdx) | Tables |
+| [SaaS spine](./saas-spine.mdx) | IdP + billing + phase 2 |
+| [Tenancy](./tenancy.mdx) | Tenant context, RLS, operators |
+| [Messaging](./messaging.mdx) | Kafka / outbox / contracts |
+| [dx CLI](./dx-cli.mdx) / [dx rules](./dx-rules.mdx) | Commands + rule codes |
+| [Testing & CI](./testing-ci.mdx) | Pytest, Schemathesis, workflows |
+| [Examples](./examples.mdx) | Folder guide |

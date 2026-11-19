@@ -5,54 +5,49 @@ sidebar_position: 4
 
 # Platform kit
 
-`platform-kit` is the shared FastAPI baseline. In monorepos it lives at `packages/platform-kit/`. Polyrepo services pin it as a dependency.
+Path (dev): `backend/mono-monolith/packages/platform-kit/src/platform_kit/`
 
-## Surface area (top-level modules)
+## Modules
 
-| Area | Role |
+| Module | Role |
 |---|---|
-| `app` | `create_app`, router discovery, `extra_routers` |
-| `rbac` | `SecureRouter`, `Permission`, role maps |
-| `permission_resolver` | Redis → DB → code permission resolution |
-| `errors` | Typed `AppError` hierarchy + envelope |
-| `logging` | structlog helpers |
-| `middleware` | Request ID, timing, etc. |
-| `db` | Async session, `BaseRepository` |
-| `health` | `/health/live`, `/health/ready` |
-| `security` | JWT verify / issue helpers |
-| `http` | `ServiceClient` for service-to-service calls |
-| `messaging` | FastStream + outbox (Kafka extra) |
-| `telemetry` | OpenTelemetry wiring |
-| `redis` / `cache` | Redis client + cache helpers |
-| `context` | Request/tenant context |
-| `tenancy` | Tenant mixins, RLS helpers |
-| `entitlements` | Features / quotas |
-| `audit` | Enterprise-shaped audit helpers |
-| `rate_limit` | Redis-backed limits |
-| `api_keys` | API key helpers |
-| `mfa` / `oidc` | MFA + OIDC helpers |
-| `stripe_billing` | Stripe billing adapter |
-| `providers` | Phase-2 ports: SSO, SCIM, Stripe, email stubs |
-| `testing` | Test utilities |
-| `cli` | The `dx` tool and generators |
+| `app` | `create_app`, router discovery, `load_models` |
+| `rbac` | `SecureRouter`, `Permission`, `Action`, `PUBLIC` |
+| `permission_resolver` | Redis → DB → code |
+| `errors` | Typed errors + envelope |
+| `logging` / `middleware` / `context` | Observability & request context |
+| `db` | `Base`, mixins, `Database`, `BaseRepository` |
+| `health` | live/ready |
+| `security` | JWT |
+| `http` | `ServiceClient` |
+| `messaging` | Event, outbox, subscribers |
+| `telemetry` | OTel |
+| `redis` / `cache` / `rate_limit` | Redis helpers |
+| `tenancy` | Tenant deps, RLS |
+| `entitlements` | `require_feature` / `require_quota` |
+| `audit` | Audit helpers |
+| `api_keys` / `mfa` / `oidc` | Phase 2 |
+| `stripe_billing` / `providers` | Payments + ports |
+| `testing` | Test utils (`memory://` Redis) |
+| `cli` | `dx` |
+
+## Public exports (`__init__`)
+
+`create_app`, `ServiceSettings`, `get_logger`, `PUBLIC`, `Action`, `Permission`, `SecureRouter`, error types listed in [Architecture](./architecture.mdx).
 
 ## Extras
 
 ```text
 platform-kit[otel]
-platform-kit[otel,saas]
-platform-kit[otel,kafka]
-platform-kit[stripe]
+platform-kit[kafka]
 platform-kit[redis]
+platform-kit[saas]      # redis + argon2 + cryptography + email-validator + pyotp
+platform-kit[stripe]
 platform-kit[testing]
 ```
 
-## Protection
+Script entry: `dx = platform_kit.cli.main:main`.
 
-Do **not** edit kit paths in product repos unless you are a lead and export:
+## Kit sync rule
 
-```bash
-export DX_ALLOW_BASELINE=1
-```
-
-AI hooks and `dx check` block casual baseline edits. Prefer contributing kit changes upstream (poly-kit / template) and bumping consumers.
+Develop in mono-monolith kit → rsync to template + other examples (exclude `*.jinja`, `project.json`, `moon.yml`). See [Meta-repo](../getting-started/meta-repo.mdx).

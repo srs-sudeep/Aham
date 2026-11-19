@@ -1,52 +1,49 @@
 ---
 title: UI kit
-sidebar_position: 2
+sidebar_position: 3
 ---
 
-# UI kit
+# UI kit (`@aham/ui-kit`)
 
-`@aham/ui-kit` is the protected frontend baseline (mirrors backend `platform-kit`).
+Protected baseline. Edit only with `DX_ALLOW_BASELINE=1`.
 
-## What it owns (example `web-spa`)
-
-- Design **tokens** and **color presets**
-- **Curated shadcn-style primitives** (~20) re-exported from `@aham/ui-kit/components` — avatar, badge, button, card, checkbox, dialog, dropdown-menu, input, label, scroll-area, select, separator, sheet, skeleton, sonner, switch, table, tabs, textarea, tooltip
-- **AppShell** layout primitives
-- **PreferencesProvider** — theme mode, preset, locale, density
-- Auth helpers / session storage conventions
-- Shared **API client** + query utilities
-- i18n bootstrap
-- Node **`dx` CLI** (`check`, `new-feature`, `rules`, `hook`)
-
-## Package exports (example)
+## Layers
 
 ```text
-@aham/ui-kit
-@aham/ui-kit/components
-@aham/ui-kit/tokens.css
-@aham/ui-kit/tailwind-preset
+src/primitives/          # layer 0 — kit-internal shadcn/radix wrappers
+src/components/          # layer 1 — public components + icons
+src/{layout,data,form,feedback,patterns}/   # layer 2
+src/{shell,preferences,api,i18n,format,tenancy,auth,testing}/
 ```
 
-## Import rules
+## Package exports
 
-```ts
-// ✅
-import { Button } from '@aham/ui-kit/components'
-import { something } from '@aham/ui-kit'
+| Export | Contents |
+|---|---|
+| `@aham/ui-kit` | auth, preferences, shell, modules helpers, tenancy, format, … |
+| `@aham/ui-kit/components` | ~20 primitives + typography + icons |
+| `@aham/ui-kit/data` | `DataTable`, `FilterBar`, `Pagination` |
+| `@aham/ui-kit/form` | `Form`, `FormField`, `FormSection`, `FormActions`, `useZodForm`, `mapServerErrors` |
+| `@aham/ui-kit/layout` | `Page`, `PageHeader`, `Section`, `Breadcrumbs` |
+| `@aham/ui-kit/feedback` | `QueryState`, `EmptyState`, `ErrorState`, `ConfirmDialog` |
+| `@aham/ui-kit/patterns` | `ListPage`, `DetailPage`, `FormPage` |
+| `@aham/ui-kit/testing` | `TestProviders`, `createTestQueryClient` |
+| `@aham/ui-kit/tokens.css` | CSS tokens |
 
-// ❌ raw internal paths, axios, fetch from views
-```
+Primitives (~20): avatar, badge, button, card, checkbox, dialog, dropdown-menu, input, label, scroll-area, select, separator, sheet, skeleton, sonner, switch, table, tabs, textarea, tooltip.
 
-## Template vs example drift
+## AppShell
 
-`template/frontend` ui-kit is **ahead** of the checked-in `frontend/web-spa` kit (extra modules such as data/form/layout/feedback/patterns/tenancy). Regenerating from the template yields a richer kit than the example currently shows.
+Props: `brand`, `navGroups` (preferred), `children`, `topbarExtra`, `onNavigate`, `currentPath`. Filters nav by `can()`; collapse via preferences; mobile Sheet.
 
-## Protection
+## Modules helpers
 
-Do not edit `packages/ui-kit` in a product app unless you are intentionally changing the baseline:
+`defineModule`, `defineFeature`, `buildNavGroups`, `collectLocales`.
 
-```bash
-export DX_ALLOW_BASELINE=1
-```
+## Tenancy helpers
 
-Prefer template / kit PRs, then regenerate or update consumers.
+`TenantProvider`, `useTenant`, `get/setStoredTenantId`, `TENANT_STORAGE_KEY` (`aham.tenant.id`).
+
+## Template parity
+
+`template/frontend` ui-kit and `frontend/web-spa` packages are kept in sync by `check-examples.sh` (Jinja only parameterizes brand/env).

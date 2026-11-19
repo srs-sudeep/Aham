@@ -1,58 +1,28 @@
 ---
 title: Examples
-sidebar_position: 10
+sidebar_position: 16
 ---
 
 # Backend examples
 
-All under `backend/` in this repository.
-
 ## `mono-monolith`
 
-- Modular monolith, messaging none
-- Modules: **items**, **identity**, **billing**
-- Compose: Postgres 16 + Redis 7 (+ Jaeger via `--observability`)
-- Port: `8001→8000`
-- Env: `cp .env.example services/core-api/.env`
-- Best pairing with `frontend/web-spa` for SaaS exploration
-
 ```bash
-cd backend/mono-monolith
-uv sync --all-packages
 cp .env.example services/core-api/.env
 docker compose up -d postgres redis
 uv run dx run core-api
 ```
 
-## `mono-micro-kafka-nx`
+Modules: identity, billing, items. Redis required.
 
-- Microservices monorepo + Kafka + Nx
-- Packages: platform-kit + contracts
-- Example module: items only (single `core-api`)
-- Kafka from host: `localhost:29092`
-- Root `nx.json` / `package.json` for affected tasks
+## `mono-micro-kafka-nx` / `mono-micro-moon`
 
-## `mono-micro-moon`
-
-- Microservices monorepo + moon
-- HTTP only (no Kafka/contracts in this example)
-- Example module: items only
+Single `core-api` + items. Kafka variant: contracts + `localhost:29092`.
 
 ## `poly-kit`
 
-- No `services/` — publishes platform-kit + contracts
-- Includes SaaS CLI templates
-- Tag `v*` → release workflow
+Publishes kit + contracts; `v*` release; SaaS CLI templates.
 
 ## `poly-service-kafka`
 
-- Flat service layout at repo root (`.env` at root)
-- Depends on `../poly-kit` via path pin in this monorepo
-- Compose: Postgres + Kafka (`localhost:29092` from host)
-
-## Suggested learning order
-
-1. `mono-monolith` — understand modules + SaaS
-2. `mono-micro-moon` — multi-service shape without broker noise
-3. `mono-micro-kafka-nx` or `poly-service-kafka` — events + contracts
-4. `poly-kit` — how the baseline is published
+Flat `src/core_api/`; kit path-pinned to `../poly-kit`; root `.env`.

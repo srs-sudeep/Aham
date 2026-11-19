@@ -1,0 +1,96 @@
+---
+title: Configuration
+sidebar_position: 7
+---
+
+# Configuration
+
+All settings are Pydantic fields on `ServiceSettings` (`platform_kit.config`). Env names are **UPPER_SNAKE**. Never read `os.environ` in product code (`CFG001`).
+
+## Core
+
+| Env | Default | Notes |
+|---|---|---|
+| `SERVICE_NAME` | `service` | |
+| `VERSION` | `0.1.0` | |
+| `ENV` | `dev` | `dev\|test\|staging\|prod` |
+| `API_PREFIX` | `/api/v1` | |
+| `CORS_ORIGINS` | `[]` | JSON list; SPA needs `http://localhost:5173` |
+| `DOCS_ENABLED` | `true` | |
+| `LOG_LEVEL` | `INFO` | |
+| `LOG_JSON` | auto | JSON except in `dev` |
+| `EXPOSE_ERROR_DETAILS` | auto | only dev/test; forced off in prod |
+
+## Database
+
+| Env | Default |
+|---|---|
+| `DATABASE_URL` | `postgresql+asyncpg://app:app@localhost:5432/app` |
+| `DB_ECHO` | `false` |
+| `DB_POOL_SIZE` | `5` |
+| `DB_AUTO_CREATE` | `false` (forbidden in prod) |
+
+Monolith override: DB name `core_api` (compose init creates it).
+
+## JWT / tokens
+
+| Env | Default |
+|---|---|
+| `JWT_SECRET` | dev placeholder (change!) |
+| `JWT_ALGORITHM` | `HS256` |
+| `JWKS_URL` | `None` (API-profile external IdP) |
+| `JWT_AUDIENCE` / `JWT_ISSUER` | `None` (SaaS example sets local values) |
+| `ACCESS_TOKEN_TTL_SECONDS` | `900` |
+| `REFRESH_TOKEN_TTL_SECONDS` | `2592000` (30d) |
+| `REFRESH_COOKIE_NAME` | `refresh_token` |
+| `REFRESH_COOKIE_SECURE` | `true` (set `false` for local HTTP) |
+| `REFRESH_COOKIE_SAMESITE` | `lax` |
+| `TOKEN_DELIVERY` | `both` (`body\|cookie\|both`) |
+
+## SaaS
+
+| Env | Default |
+|---|---|
+| `PLATFORM_PROFILE` | `api` (monolith overrides to `saas`) |
+| `REDIS_URL` | required for saas outside dev/test |
+| `PLATFORM_OPERATOR_TENANT_ID` | `None` — gates billing activate/past-due/overrides |
+| `RATE_LIMIT_LOGIN` | `10` |
+| `RATE_LIMIT_WINDOW_SECONDS` | `60` |
+| `MFA_ISSUER` | `Aham` |
+| `OIDC_REDIRECT_URI` | `None` |
+| `FRONTEND_URL` | `None` — SSO callback redirects |
+
+## Stripe (optional extra)
+
+| Env | Default |
+|---|---|
+| `STRIPE_API_KEY` | `None` |
+| `STRIPE_WEBHOOK_SECRET` | `None` |
+| `STRIPE_SUCCESS_URL` | `http://localhost:5173/billing?checkout=success` |
+| `STRIPE_CANCEL_URL` | `http://localhost:5173/billing?checkout=cancel` |
+| `STRIPE_PRICE_BY_PLAN` | `{}` |
+
+Install: `platform-kit[stripe]`. Default provider is **ManualProvider**.
+
+## HTTP client / OTel / Kafka
+
+| Env | Default |
+|---|---|
+| `SERVICE_URLS` | `{}` |
+| `HTTP_TIMEOUT_SECONDS` | `5.0` |
+| `HTTP_RETRIES` | `2` |
+| `OTEL_ENABLED` | `false` |
+| `OTEL_ENDPOINT` | `http://localhost:4317` |
+| `KAFKA_ENABLED` | `false` |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` (examples use **`localhost:29092`** from host) |
+| `OUTBOX_POLL_SECONDS` | `1.0` |
+| `OUTBOX_MAX_ATTEMPTS` | `10` |
+
+## Where to put `.env`
+
+| Layout | Path |
+|---|---|
+| Monorepo service | `services/<name>/.env` |
+| Polyrepo service | repo root `.env` |
+
+Compose `env_file` and `dx run` cwd follow the same rule.

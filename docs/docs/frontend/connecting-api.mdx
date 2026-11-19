@@ -5,44 +5,39 @@ sidebar_position: 7
 
 # Connecting to the API
 
-## Configuration
+## Env
 
 ```bash
-# frontend/web-spa/.env  (from .env.example)
-VITE_API_BASE_URL=http://localhost:8001
+# frontend/web-spa/.env
+VITE_API_BASE_URL=http://localhost:8001/api/v1
 VITE_DEFAULT_LOCALE=en
+VITE_AUTH_MODE=saas
+# VITE_USE_MOCKS=1
 ```
 
-There is **no Vite proxy** — the browser calls `VITE_API_BASE_URL` directly. The SPA creates an API client that prefixes requests with this base URL and attaches the Bearer token from `localStorage` (`aham.auth.token`). Session principal is stored separately in `aham.auth.principal`.
+**Important:** the base URL **includes** `/api/v1`. Feature clients call `/items`, `/auth/login`, etc. relative to that base — matching backend mounts.
 
-## Natural pairing
+No Vite proxy — browser calls the API origin directly (configure `CORS_ORIGINS` on the API).
 
-| Side | Example | Port |
-|---|---|---|
-| API | `backend/mono-monolith` `core-api` | `8001` |
-| UI | `frontend/web-spa` | `5173` |
+## Client
 
-## Path alignment (why mocks appear)
+`apps/web/src/lib/api.ts`:
 
-| Layer | Paths today |
+- Builds `apiClient` from `VITE_API_BASE_URL`
+- Attaches `Authorization: Bearer` from `aham.auth.token`
+- `refreshSession` on 401 (SaaS)
+- Exposes `AUTH_MODE`
+
+Hooks obtain the client via `useApi()` from the kit `ApiProvider`.
+
+## Pairing
+
+| Side | URL |
 |---|---|
-| Backend items | `GET /api/v1/items`, `GET /api/v1/items/{id}` |
-| SPA items feature | `GET /items`, `GET /items/{id}` (relative to base URL) |
+| mono-monolith | `http://localhost:8001` |
+| SPA | `http://localhost:5173` |
+| OpenAPI → types | `pnpm gen-api http://localhost:8001/openapi.json` → `apps/web/src/lib/api-types.ts` |
 
-Because the feature omits the `/api/v1` prefix, real calls fail and the example **falls back to mock data**.
+## Stripe return URLs (backend defaults)
 
-Auth on the monolith:
-
-- `/api/v1/auth/login`, `/refresh`, `/switch-tenant`, …
-
-## Recommended integration order
-
-1. Point `VITE_API_BASE_URL` at the running monolith
-2. Align items feature paths with `/api/v1/items`
-3. Replace stub login with `/api/v1/auth/login` + refresh storage (`token` + `principal`)
-4. Plumb tenant switch into shell (SaaS)
-5. Optionally generate client types from OpenAPI into feature `api/` folders
-
-## CORS / cookies
-
-Dev typically uses bearer tokens from localStorage against `:8001`. If you move to cookie sessions, update kit auth helpers and CORS on the API intentionally — do not bypass the kit patterns.
+Point at SPA: `/billing?checkout=success|cancel` (wire a billing feature when ready).

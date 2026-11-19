@@ -5,86 +5,110 @@ sidebar_position: 3
 
 # Local development
 
-## Backend example — mono-monolith (SaaS)
-
-Env files belong **next to the service** (compose and `dx run` load `services/core-api/.env`):
+## Backend — mono-monolith (SaaS)
 
 ```bash
 cd backend/mono-monolith
 cp .env.example services/core-api/.env
 uv sync --all-packages
 docker compose up -d postgres redis
-uv run dx db upgrade core-api
+uv run dx db upgrade core-api   # versions/ may be empty; tests often use DB_AUTO_CREATE
 uv run dx run core-api
 ```
 
 | Endpoint | URL |
 |---|---|
-| API | `http://localhost:8001` (maps to container `8000`) |
+| API | `http://localhost:8001` → container `8000` |
 | OpenAPI | `http://localhost:8001/docs` |
-| Liveness | `http://localhost:8001/health/live` |
-| Readiness | `http://localhost:8001/health/ready` |
-
-Dev JWT helpers:
+| OpenAPI JSON | `http://localhost:8001/openapi.json` |
+| Liveness | `/health/live` |
+| Readiness | `/health/ready` |
+| Jaeger | `dx up --observability` → `:16686` |
 
 ```bash
-uv run dx token core-api --all
+uv run dx token core-api --all          # mint a JWT with all permissions
+uv run dx token core-api --perm 'core-api.item:list' --sub alice
 ```
 
-Optional Jaeger: `uv run dx up --observability` → UI on `http://localhost:16686`.
-
-## Backend example — Kafka microservice
+Important env (service `.env`):
 
 ```bash
-cd backend/mono-micro-kafka-nx   # or poly-service-kafka / mono-micro-moon (no Kafka)
-cp .env.example services/core-api/.env   # poly-service-kafka: cp .env.example .env
-uv sync --all-packages
-docker compose up -d postgres kafka      # moon: postgres only
-uv run dx db upgrade core-api
+PLATFORM_PROFILE=saas
+REDIS_URL=redis://localhost:6379/0
+JWT_ISSUER=https://auth.local
+JWT_AUDIENCE=api://local
+CORS_ORIGINS=["http://localhost:5173"]
+FRONTEND_URL=http://localhost:5173
+REFRESH_COOKIE_SECURE=false   # local HTTP
+```
+
+## Backend — Kafka variants
+
+```bash
+cd backend/mono-micro-kafka-nx
+cp .env.example services/core-api/.env
+docker compose up -d postgres kafka
+# KAFKA_BOOTSTRAP_SERVERS=localhost:29092  (host clients)
 uv run dx run core-api
 ```
 
-Host Kafka bootstrap (examples): **`localhost:29092`** (`KAFKA_BOOTSTRAP_SERVERS` in `.env.example`). Internal broker port `9092` is for containers only.
+| Network | Bootstrap |
+|---|---|
+| Host | `localhost:29092` |
+| Containers | service DNS + internal `9092` |
 
-## Frontend example — web-spa
+## Frontend — web-spa (SaaS against monolith)
 
 ```bash
 cd frontend/web-spa
 cp .env.example .env
-# VITE_API_BASE_URL=http://localhost:8001
+# VITE_API_BASE_URL=http://localhost:8001/api/v1
+# VITE_AUTH_MODE=saas
 # VITE_DEFAULT_LOCALE=en
 pnpm install
+pnpm dev    # :5173
+```
+
+## Frontend — UI-only with MSW
+
+```bash
+# .env
+VITE_AUTH_MODE=dev
+VITE_USE_MOCKS=1
+pnpm mocks:init   # once — writes public/ mockServiceWorker.js
 pnpm dev
 ```
 
-- SPA: `http://localhost:5173`
-- Settings: theme mode, **color preset**, locale (en/ja), density
-- Items feature: **list + detail** only; calls `/items` relative to the API base and falls back to mocks on failure
-
-## Quality gates (run before finishing work)
+## Quality gates
 
 ### Backend
 
 ```bash
-uv run dx fmt
-uv run dx lint --service core-api
-uv run dx test --service core-api
-uv run dx check
+uv run dx fmt && uv run dx lint --service core-api
+uv run dx test --service core-api && uv run dx check
 ```
 
 ### Frontend
 
 ```bash
-pnpm dx check
-pnpm test
-pnpm build
+pnpm format:check && pnpm typecheck && pnpm lint
+pnpm dx check && pnpm test && pnpm --filter ./apps/web build
 ```
 
-## Pairing SPA + API
+### Meta-repo
 
-| Process | Port |
+```bash
+./scripts/check-examples.sh
+```
+
+## Ports cheat sheet
+
+| Service | Port |
 |---|---|
-| `core-api` (mono-monolith) | `8001 → 8000` |
-| `web-spa` | `5173` |
-
-Login in the SPA is a **dev stub** (`aham.auth.token` + `aham.auth.principal`). Real auth lives under `/api/v1/auth/*` on the SaaS monolith. Items CRUD on the API is under `/api/v1/items`. See [Connecting to the API](../frontend/connecting-api.mdx).
+| core-api (host) | 8001 |
+| Postgres | 5432 |
+| Redis | 6379 |
+| Kafka (host) | 29092 |
+| Jaeger UI | 16686 |
+| SPA | 5173 |
+| Storybook (ui-kit) | 6006 |

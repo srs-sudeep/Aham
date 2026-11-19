@@ -5,50 +5,64 @@ sidebar_position: 1
 
 # Frontend overview
 
-Aham frontends are **Vite + React + TypeScript** SPAs built on **`@aham/ui-kit`**. Product work lives in **features**; the kit owns shell, tokens, components, preferences, and shared API/auth helpers.
+Vite + React **ERP SPA** on `@aham/ui-kit`. Product code is organised as **modules → features** (not a flat `features/` folder).
 
 ## Stack
 
 | Piece | Choice |
 |---|---|
-| Bundler | Vite 6 |
+| Bundler | Vite 6 (`:5173`, alias `@` → `src`, **no proxy**) |
 | UI | React 19 + TypeScript |
 | Routing | TanStack Router |
 | Data | TanStack Query |
-| Styling | Tailwind 4 + curated shadcn primitives via ui-kit |
-| i18n | i18next (en / ja) |
+| Forms | zod + kit `useZodForm` |
+| Styling | Tailwind 4 + curated shadcn primitives |
+| i18n | i18next (`en` / `ja`) |
+| Mocks | MSW (`VITE_USE_MOCKS=1`) |
 | Packages | pnpm workspace |
 | Node | ≥ 20 |
 
-This is **not** Next.js.
-
-## Repo shape (example `frontend/web-spa`)
+## Tree
 
 ```text
-apps/web/                 # SPA application
-  src/routes/             # fixed core routes
-  src/features/           # product features
-  src/lib/                # app wiring (api client, i18n, etc.)
-packages/ui-kit/          # protected baseline (@aham/ui-kit)
+apps/web/src/
+  app/                 # PROTECTED: router, providers, registry
+  core/                # PROTECTED: login, shell, home, settings, errors
+  lib/                 # api client, auth helpers, i18n, MSW bootstrap
+  modules/<module>/    # product modules (catalog today)
+packages/ui-kit/       # @aham/ui-kit
+nginx/                 # production SPA image
 ```
+
+Registry auto-discovers `modules/*/module.ts` via `import.meta.glob`.
 
 ## Commands
 
 ```bash
 cd frontend/web-spa
 pnpm install
-pnpm dev          # http://localhost:5173
+pnpm dev
 pnpm dx check
-pnpm dx new-feature <name>
+pnpm new-module inventory
+pnpm new-feature inventory/skus
+pnpm gen-api http://localhost:8001/openapi.json
 pnpm test
-pnpm build
+pnpm --filter ./apps/web build
 ```
 
-## Docs in this section
+## Section map
 
-- [UI kit](./ui-kit.mdx)
-- [Features](./features.mdx)
-- [Routing & auth](./routing-auth.mdx)
-- [Theming & i18n](./theming-i18n.mdx)
-- [dx check](./dx-check.mdx)
-- [Connecting to the API](./connecting-api.mdx)
+| Page | Contents |
+|---|---|
+| [Modules](./modules.mdx) | Folder contract + import matrix |
+| [UI kit](./ui-kit.mdx) | Exports, layers, AppShell |
+| [Auth](./auth.mdx) | saas vs dev, storage, MFA/SSO |
+| [Routing](./routing.mdx) | Route table + guards |
+| [Catalog](./catalog.mdx) | items + categories reference |
+| [API](./connecting-api.mdx) | Env + client |
+| [Mocks](./mocks.mdx) | MSW |
+| [Theming & i18n](./theming-i18n.mdx) | Preferences |
+| [dx check](./dx-check.mdx) | FE-* codes |
+| [Testing](./testing.mdx) | Vitest / Playwright / Storybook |
+
+Golden patterns live in `frontend/web-spa/CONVENTIONS.md`.

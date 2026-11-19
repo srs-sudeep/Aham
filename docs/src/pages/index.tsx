@@ -17,19 +17,19 @@ const features: Feature[] = [
   {
     title: 'Template',
     description:
-      'One Copier source that generates backend or frontend projects with the right layout, messaging, and tooling.',
+      'Copier source of truth: stack, layouts, SaaS profile, auth_mode, and example drift gates.',
     to: '/docs/template/overview',
   },
   {
     title: 'Backend',
     description:
-      'FastAPI + platform-kit: modular monoliths, microservices, Kafka, SaaS spine, and enforced module layering.',
+      'FastAPI + platform-kit: full API catalog, env map, TEN001 tenancy, Kafka outbox, dx rules.',
     to: '/docs/backend/overview',
   },
   {
     title: 'Frontend',
     description:
-      'Vite + React + ui-kit: fixed core routes, feature folders, theme/i18n, and dx check across the SPA.',
+      'Vite ERP SPA: modules→features, SaaS auth, catalog CRUD, MSW, FE-* checks, ui-kit exports.',
     to: '/docs/frontend/overview',
   },
 ];
@@ -49,8 +49,8 @@ function HomepageHeader() {
           </Link>
           <Link
             className="button button--secondary button--lg"
-            to="/docs/getting-started/generate-project">
-            Generate a project
+            to="/docs/getting-started/local-dev">
+            Run locally
           </Link>
         </div>
       </div>
@@ -80,7 +80,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title={`${siteConfig.title} docs`}
-      description="Platform documentation for Aham template, backend, and frontend stacks.">
+      description="Technical documentation for the Aham Copier template, FastAPI platform-kit, and Vite ui-kit SPA.">
       <HomepageHeader />
       <main>
         <FeatureGrid />

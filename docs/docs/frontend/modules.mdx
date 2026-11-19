@@ -1,0 +1,76 @@
+---
+title: Modules & features
+sidebar_position: 2
+---
+
+# Modules & features
+
+```bash
+pnpm new-module <name>
+pnpm new-feature <module>/<name>
+```
+
+## Folder contract
+
+```text
+modules/<module>/
+  module.ts                 # defineModule({ id, labelKey, icon, order, features })
+  public.ts                 # ONLY cross-module import surface
+  locales/{en,ja}.json
+  shared/{api,hooks,model,components}/
+  features/<feature>/
+    index.ts                # defineFeature({ id, routes, nav, locales })
+    api/       *.api.ts *.keys.ts *.handlers.ts
+    hooks/     use-*.ts     # no JSX
+    model/     *.schema.ts *.constants.ts *.mappers.ts  # pure
+    views/pages/            # flat screens
+    views/components/       # one nesting level max
+    routes/    *.routes.tsx # path + permission
+    locales/   {en,ja}.json
+```
+
+Max depth: no nested features; pages flat; component groups 1 level (`views/components/pricing/…`). Colocated `*.test.ts[x]` exempt from style rules.
+
+## Manifests
+
+```ts
+export default defineModule({
+  id: "catalog",
+  labelKey: "catalog.title",
+  icon: Package,
+  order: 20,
+  features: [items, categories],
+});
+
+export default defineFeature({
+  id: "items",
+  routes: itemsRoutes,
+  nav: { labelKey: "items.title", to: "/catalog/items", permission: "items:list", icon: Package },
+  locales: { en, ja },
+});
+```
+
+## Import matrix (summary)
+
+| From | May import |
+|---|---|
+| `views/*` | ui-kit, model, hooks, same-feature views; **not** api/fetch |
+| `hooks/*` | ui-kit, model, api; **not** views/JSX |
+| `api/*` | model + client types; **not** React/hooks/views |
+| `model/*` | pure TS only |
+| Other feature | its `index.ts` only (`IMPORT001`) |
+| Other module | `public.ts` only (`STR012`) |
+
+**Banned in apps:** `lucide-react`, `axios`, `@radix-ui/*`, `@aham/ui-kit/primitives`. Use kit re-exports. Never import `app/` or `core/` from modules.
+
+## Tenant-scoped query keys
+
+```ts
+export const itemsKeys = {
+  all: (tenantId: string | null) => ["catalog", "items", tenantId] as const,
+  list: (t: string | null, s: ItemsSearch) => [...itemsKeys.all(t), "list", s] as const,
+  detail: (t: string | null, id: string) => [...itemsKeys.all(t), "detail", id] as const,
+};
+```
+
+Hooks use `useApi()` → `{ client, tenantId }` + TanStack Query.

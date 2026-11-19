@@ -6,49 +6,63 @@ title: Introduction
 
 # Aham
 
-**Aham** is a Copier-driven platform scaffold. One template generates either a **FastAPI backend** or a **Vite React SPA**, and this repository also keeps example outputs for every common layout.
+**Aham** is a Copier-driven platform scaffold: one template generates a **FastAPI backend** or a **Vite React SPA**, and this repository keeps example outputs plus a Docusaurus docs site.
 
 ```text
 Aham/
-├── template/          # Copier source (stack: backend | frontend)
+├── template/          # Source of truth (stack: backend | frontend)
 │   ├── backend/       # FastAPI + platform-kit
-│   └── frontend/      # Vite + React + ui-kit
-├── backend/           # Example generated API kits
-├── frontend/          # Example generated UI kits
-└── docs/              # This documentation site (Docusaurus)
+│   └── frontend/      # Vite + React + ui-kit (modules → features)
+├── backend/           # Rendered API examples
+├── frontend/web-spa/  # Rendered SPA example (catalog module)
+├── scripts/           # check-examples.sh (drift gate)
+├── docs/              # This documentation site
+└── AGENTS.md          # Meta-repo rules for humans + AI
 ```
-
-## What you get
-
-| Area | Baseline | You write |
-|---|---|---|
-| Backend | `platform-kit` (RBAC, errors, logging, DB, health, messaging, SaaS helpers, `dx` CLI) | **Modules** under `services/*/modules/` |
-| Frontend | `@aham/ui-kit` (tokens, shadcn, AppShell, auth helpers, i18n, preferences, `dx` CLI) | **Features** under `apps/web/src/features/` |
-
-Structure is enforced in the editor, by AI hooks, at commit (`dx check`), and in CI. Wrong layers fail early instead of becoming tribal knowledge.
 
 ## Mental model
 
-1. **Leads** own the kit (baseline). Changing it needs intent (`DX_ALLOW_BASELINE=1`).
-2. **Developers** add modules/features with `dx new-module` / `pnpm dx new-feature`.
-3. **Copier** keeps generated projects updatable with `uvx copier update --trust`.
+| Who | Owns | Writes |
+|---|---|---|
+| Platform leads | `platform-kit` / `@aham/ui-kit` | Baseline only (`DX_ALLOW_BASELINE=1`) |
+| Product teams | Services / modules / features | Domain code via `dx` generators |
+| Copier | Project shape | Answers in `.copier-answers.yml` |
 
-## Example outputs in this repo
+Wrong structure fails in the editor (hooks), at commit (`dx check`), and in CI — including the meta-repo drift check `./scripts/check-examples.sh`.
+
+## Stacks at a glance
+
+### Backend
+
+- Python 3.12+, FastAPI, SQLAlchemy 2 async, Alembic, uv, Ruff, Pyright
+- Layouts: monorepo monolith | microservices | polyrepo kit | polyrepo service
+- Optional Kafka (FastStream + outbox + contracts)
+- Default **SaaS spine**: local IdP, Redis refresh, tenancy, entitlements, audit; Phase 2 SSO/SCIM/API keys/MFA; optional Stripe
+
+### Frontend
+
+- Vite 6, React 19, TanStack Router/Query, Tailwind 4, pnpm
+- **ERP layout**: `modules/<module>/features/<feature>/`
+- Real **SaaS auth** (`VITE_AUTH_MODE=saas`) or **dev** mock + MSW
+- Reference module: **catalog** (items CRUD + categories)
+
+## Example matrix
 
 | Path | Shape |
 |---|---|
-| `backend/mono-monolith` | Modular monolith + SaaS spine (identity, billing, Redis) |
-| `backend/mono-micro-kafka-nx` | Microservices + Kafka + Nx (single `core-api` today) |
-| `backend/mono-micro-moon` | Microservices + moon (HTTP only; single `core-api`) |
-| `backend/poly-kit` | Shared platform-kit + contracts publisher |
-| `backend/poly-service-kafka` | Standalone service pinning the kit |
-| `frontend/web-spa` | Vite SPA + ui-kit + items list/detail |
+| `backend/mono-monolith` | Monolith + identity/billing/items + Redis |
+| `backend/mono-micro-kafka-nx` | Micro + Kafka + Nx (+ contracts) |
+| `backend/mono-micro-moon` | Micro + moon (HTTP only) |
+| `backend/poly-kit` | Publishes platform-kit + contracts |
+| `backend/poly-service-kafka` | Flat service pinning the kit |
+| `frontend/web-spa` | SPA + catalog + SaaS auth |
 
-Backend `.copier-answers.yml` files are still from an older template path (missing `stack` / `platform_profile`). Only `frontend/web-spa` was generated from `./template`. See [Template overview](./template/overview.mdx).
+:::tip Development rule
+Edit **`template/`** (and develop kit code in `backend/mono-monolith/packages/platform-kit`, then rsync). Do not hand-edit examples long-term — regenerate and let `check-examples.sh` keep them honest.
+:::
 
 ## Where to go next
 
-- [Getting started](./getting-started/overview.mdx) — install Copier and generate a project
-- [Template](./template/overview.mdx) — questions, tasks, and update flow
-- [Backend](./backend/overview.mdx) — layouts, modules, SaaS, Kafka, `dx`
-- [Frontend](./frontend/overview.mdx) — ui-kit, features, routes, API wiring
+- [Getting started](./getting-started/overview.mdx)
+- [Meta-repo workflow](./getting-started/meta-repo.mdx)
+- [Backend](./backend/overview.mdx) · [Frontend](./frontend/overview.mdx) · [Template](./template/overview.mdx)

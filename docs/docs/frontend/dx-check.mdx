@@ -1,44 +1,52 @@
 ---
 title: dx check
-sidebar_position: 6
+sidebar_position: 10
 ---
 
 # Frontend dx check
 
 ```bash
 pnpm dx check
+pnpm dx check --format github
 pnpm dx rules
 ```
 
-`dx check` runs the **full** frontend rule set on the whole repo (commit + CI). Claude hooks:
+Hooks: `pre` blocks ui-kit edits without baseline flag; `post` runs **full** checks.
 
-- `hook pre` — blocks ui-kit edits unless `DX_ALLOW_BASELINE=1`
-- `hook post` — runs **full** `runChecks` (not edited-file-only)
+## Generators
 
-## Rule families
-
-Codes are prefixed **`FE-`**. Run `pnpm dx rules` for the full list. Families include:
-
-| Family | Focus |
+| Command | Purpose |
 |---|---|
-| `FE-STR*` | Structure / required folders |
-| `FE-LAY*` | Layering (api/hooks/views separation) |
-| `FE-UI*` | Import only from ui-kit; no raw internals |
-| `FE-IMPORT*` | Import hygiene |
-| `FE-RBAC*` | Permissions on non-core routes |
-| `FE-DATA*` | Query/data access patterns |
-| `FE-MEM*` | Memory / effect hygiene |
-| `FE-I18N*` | No hardcoded user copy |
-| `FE-THEME*` | No rogue colors/themes |
-| `FE-RESP*` | Responsive / layout expectations |
-| `FE-CORE*` | Core route / shell invariants |
+| `pnpm new-module <name>` | Scaffold module + register |
+| `pnpm new-feature <module>/<name>` | Scaffold feature + register in `module.ts` |
+| `pnpm gen-api [openapi-url]` | Write `apps/web/src/lib/api-types.ts` |
 
-`FE-STR001` currently requires feature dirs `api` / `hooks` / `views` / `routes`. **`locales/`** is created by `dx new-feature` and required by convention/AGENTS, but is not yet in that required-dirs check.
+## FE-* rule codes
 
-## Definition of done
+| Code | Meaning |
+|---|---|
+| `FE-STR001` | Module missing `module.ts` |
+| `FE-STR002` | Module missing `public.ts` |
+| `FE-STR003` | Feature missing folders (`api\|hooks\|views/pages\|views/components\|routes\|model\|locales`) |
+| `FE-STR004` | Feature missing `index.ts` |
+| `FE-STR005` | Unexpected nesting |
+| `FE-STR010` | Path depth exceeded |
+| `FE-STR011` | Module features array must list manifests |
+| `FE-STR012` | Cross-module internal import |
+| `FE-LAY001`–`005` | Layering (views↛api, hooks↛JSX, api↛React, model pure, components↛api) |
+| `FE-IMPORT001`–`003` | Deep imports / banned packages / axios |
+| `FE-UI001` | Arbitrary Tailwind visual values |
+| `FE-RBAC001` | Route must declare permission |
+| `FE-DATA001` | useQuery/useMutation only in hooks |
+| `FE-MEM001` | Effect listeners need cleanup |
+| `FE-RESP001` | Fixed large widths in views |
+| `FE-I18N001`–`002` | Hardcoded strings / missing sibling keys |
+| `FE-THEME001` | documentElement theme/locale only in kit |
+| `FE-CORE001` | Protected path without `DX_ALLOW_BASELINE=1` |
+
+## DoD
 
 ```bash
-pnpm dx check
-pnpm test
-pnpm build
+pnpm format:check && pnpm typecheck && pnpm lint
+pnpm dx check && pnpm test && pnpm --filter ./apps/web build
 ```

@@ -1,29 +1,28 @@
 # Aham documentation
 
-Docusaurus site for the Aham platform template, backend, and frontend.
+Docusaurus site covering the Copier template, FastAPI backends, and Vite SPA.
 
 ## Develop
 
 ```bash
 cd docs
-npm install   # use registry.npmjs.org if your global npmrc points elsewhere
-npm start     # http://localhost:3000
+npm install
+npm start    # http://localhost:3000
 ```
 
 ## Build
 
 ```bash
-npm run build
-npm run serve
+npm run build && npm run serve
 ```
 
 ## Content map
 
-| Section | Path |
+| Section | Highlights |
 |---|---|
-| Intro & getting started | `docs/docs/intro.mdx`, `docs/docs/getting-started/` |
-| Template | `docs/docs/template/` |
-| Backend | `docs/docs/backend/` |
-| Frontend | `docs/docs/frontend/` |
+| Getting started | Local SaaS pairing, MSW mode, meta-repo drift |
+| Template | Copier options (`auth_mode`), generation, example drift |
+| Backend | API reference, env map, permissions, data model, tenancy, dx rules |
+| Frontend | Modules→features, auth, catalog, MSW, FE-* codes, testing |
 
 Config: `docusaurus.config.ts` · Sidebars: `sidebars.ts`

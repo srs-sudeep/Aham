@@ -1,54 +1,40 @@
 ---
 title: Messaging (Kafka)
-sidebar_position: 7
+sidebar_position: 12
 ---
 
 # Messaging (Kafka)
 
-Select `messaging=kafka` to enable async events.
+`messaging=kafka` adds broker + FastStream + outbox + `packages/contracts`.
 
-## What gets added
+## Compose
 
-- Kafka broker in Compose (KRaft — examples use `apache/kafka:3.9.0`)
-- FastStream integration in platform-kit
-- **Transactional outbox** — events committed with the same DB transaction as domain writes
-- `packages/contracts/` — append-only, versioned event schemas/topics
-- Optional subscribers in module `events.py`
+- Image: `apache/kafka:3.9.0` (KRaft)
+- Host bootstrap: **`localhost:29092`**
+- Env: `KAFKA_ENABLED=true`, `KAFKA_BOOTSTRAP_SERVERS=localhost:29092`
 
-## Contracts
+## Kit APIs
 
-Event classes live in the contracts package, for example:
+| API | Role |
+|---|---|
+| `Event` | Base event (`topic`, `version`, `event_id`, `occurred_at`) |
+| `OutboxMessage` | DB row |
+| `outbox.add(session, event)` | Same transaction as domain write |
+| `@subscriber(Event, group=...)` | Consumer in `events.py` |
+| `Messaging.start/stop` | Lifecycle |
+
+## Contracts example
 
 ```text
-packages/contracts/src/contracts/events/
+packages/contracts/src/contracts/events/example.py
 ```
 
-Example topic pattern: `example.item.created.v1`. Treat contracts as append-only: add new versions rather than breaking old payloads.
+`ExampleItemCreated` → topic `example.item.created.v1`, fields `item_id`, `name`.
 
-:::note Example status
-Kafka variants ship the **infrastructure** and a contracts example. The `items` module in those examples does **not** yet publish to the outbox or define `events.py` — use the contracts package as the pattern when you wire real domain events.
+:::note
+Shipped Kafka examples include contracts + infra. The `items` module may not yet publish — use contracts as the pattern when wiring events.
 :::
 
-## When to use Kafka
+## Outbox settings
 
-- Multiple services need the same domain fact
-- Work that must not block the request path
-- Integration with external consumers
-
-Prefer HTTP + `ServiceClient` for synchronous request/response between services.
-
-## Local run
-
-```bash
-docker compose up -d postgres kafka
-# Host clients (dx run on the host):
-# KAFKA_BOOTSTRAP_SERVERS=localhost:29092
-uv run dx run core-api
-```
-
-| Network | Bootstrap |
-|---|---|
-| Host → Kafka | `localhost:29092` |
-| Container → Kafka | internal `9092` (Compose service DNS) |
-
-Jaeger is typically available via `dx up --observability` → `http://localhost:16686`.
+`OUTBOX_POLL_SECONDS` (default `1.0`), `OUTBOX_MAX_ATTEMPTS` (default `10`).

@@ -1,0 +1,56 @@
+---
+title: Data model
+sidebar_position: 9
+---
+
+# Data model (mono-monolith)
+
+## Identity
+
+| Table | Purpose |
+|---|---|
+| `tenants` | Organizations |
+| `users` | Global users |
+| `roles` / `permissions` / `role_permissions` | RBAC catalog |
+| `memberships` | User ↔ tenant + role |
+| `invitations` | Invite tokens |
+| `auth_connections` | SSO links |
+| `user_mfa` | TOTP secrets |
+| `api_keys` | Hashed `aham_…` keys |
+| `scim_tokens` | SCIM bearer hashes |
+| `audit_events` | Auth/admin audit |
+
+## Billing
+
+| Table | Purpose |
+|---|---|
+| `features` | Feature flags / capabilities |
+| `plans` / `plan_features` | Plan catalog |
+| `subscriptions` | Tenant subscription state |
+| `entitlement_snapshots` | Cached entitlements |
+| `entitlement_overrides` | Operator overrides |
+
+## Items (example)
+
+| Table | Columns |
+|---|---|
+| `items` | `name` (unique), `description` |
+
+:::note
+The example `items` table does **not** yet use `TenantScopedMixin`. SaaS RLS SQL templates show how to add tenant scoping for domain tables.
+:::
+
+## Messaging (Kafka layouts)
+
+| Table | Purpose |
+|---|---|
+| `outbox_messages` | Transactional outbox (`platform_kit.messaging`) |
+
+## Alembic
+
+- Per service: `alembic.ini` + `alembic/env.py`
+- Loads models via `load_models("core_api", include_messaging=settings.kafka_enabled)`
+- `compare_type=True`
+- Example `versions/` may be empty — use `uv run dx db revision <svc> -m "..."` then `upgrade`
+
+Tests often enable `DB_AUTO_CREATE` for speed; production must use migrations (`DB_AUTO_CREATE` forbidden in prod).

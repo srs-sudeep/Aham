@@ -1,0 +1,56 @@
+---
+title: Meta-repo workflow
+sidebar_position: 4
+---
+
+# Meta-repo workflow
+
+This repository is a **template + examples** monorepo. Source of truth: root [`AGENTS.md`](https://github.com).
+
+## Rules
+
+1. Edit **`template/`** for structural / generated changes.
+2. Develop **platform-kit** in `backend/mono-monolith/packages/platform-kit` (tests against a real service), then **rsync** into the template kit path and other kit examples.
+3. Do **not** hand-edit examples long-term — re-render from Copier.
+4. When rsyncing kit with `--delete`, exclude `*.jinja`, `project.json`, `moon.yml`.
+
+```text
+backend/mono-monolith/packages/platform-kit
+        │  rsync (exclude jinja / nx / moon files)
+        ▼
+template/backend/{% if has_kit_source %}packages{% endif %}/platform-kit
+        │  also sync into mono-micro-*, poly-kit
+```
+
+SaaS module templates under `platform_kit/cli/templates/saas/` mirror monolith `identity` / `billing` with `$package` placeholders (`$` → `$$` for Copier).
+
+## Drift gate
+
+```bash
+./scripts/check-examples.sh
+```
+
+What it verifies:
+
+- No nested `.git` under `backend/` / `frontend/`
+- Each example’s `platform-kit` matches the template kit
+- `frontend/web-spa` matches a fresh Copier render (`stack=frontend`, `auth_mode=saas`)
+- `backend/mono-monolith` matches a fresh render (`platform_profile=saas`) excluding `services/` and postgres init (those come from `dx new-service` / `dx new-saas`)
+
+## Meta CI
+
+`.github/workflows/template.yml`:
+
+| Job | Purpose |
+|---|---|
+| `examples` | `./scripts/check-examples.sh` |
+| `backend` (matrix) | Copier generate + ruff / pyright / `dx check` / pytest |
+| `frontend` (`auth_mode` saas\|dev) | format / typecheck / lint / `dx check` / test / build |
+
+Backend matrix rows include: `monolith-saas`, `monolith-api`, `microservices-saas-kafka`, `microservices-api-moon`, `polyrepo-kit`.
+
+## Definition of done (meta)
+
+- `./scripts/check-examples.sh` passes
+- Touched examples pass their own quality gates
+- New Copier choices get a matrix row in `template.yml`

@@ -1,0 +1,77 @@
+---
+title: API reference
+sidebar_position: 6
+---
+
+# API reference (mono-monolith)
+
+Base path: **`/api/v1`**. Source: `backend/mono-monolith/services/core-api/src/core_api/modules/`.
+
+## Health (no prefix)
+
+| Method | Path |
+|---|---|
+| GET | `/health/live` |
+| GET | `/health/ready` |
+
+## Identity — `/auth`
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| POST | `/auth/register` | PUBLIC | rate limit 5/60s IP |
+| POST | `/auth/login` | PUBLIC | 10/60s; may return tenant selection or MFA challenge |
+| POST | `/auth/select-tenant` | PUBLIC | |
+| POST | `/auth/refresh` | PUBLIC | body and/or refresh cookie |
+| POST | `/auth/logout` | PUBLIC | |
+| GET | `/auth/tenants` | `identity.tenant:list` | |
+| POST | `/auth/switch-tenant` | `identity.tenant:update` | |
+| POST | `/auth/invitations` | `identity.user:create` | 201; may return token in dev |
+| POST | `/auth/invitations/accept` | PUBLIC | |
+| POST | `/auth/users/disable` | `identity.user:delete` | |
+| GET | `/auth/audit` | `identity.audit:list` | `since`, `until`, `action`, `limit`≤1000 |
+| POST | `/auth/mfa/enroll` | `identity.user:update` | Phase 2 |
+| POST | `/auth/mfa/confirm` | `identity.user:update` | Phase 2 |
+| POST | `/auth/mfa/complete` | PUBLIC | Phase 2 |
+| POST | `/auth/sso/start` | PUBLIC | Phase 2 OIDC |
+| GET | `/auth/sso/callback` | PUBLIC | may 303 → `FRONTEND_URL` |
+| PUT | `/auth/sso/oidc` | `identity.tenant:update` | Phase 2 |
+| POST | `/auth/api-keys` | `identity.user:create` | keys `aham_…` / `X-API-Key` |
+| DELETE | `/auth/api-keys/{key_id}` | `identity.user:delete` | |
+| POST | `/auth/scim-token` | `identity.user:create` | issues SCIM bearer |
+
+## SCIM — `/scim/v2` (`extra_routers`)
+
+| Method | Path | Auth |
+|---|---|---|
+| POST | `/scim/v2/Users` | SCIM bearer (PUBLIC route) |
+| PUT | `/scim/v2/Users/{user_id}` | SCIM bearer |
+| DELETE | `/scim/v2/Users/{user_id}` | SCIM bearer |
+
+## Billing — `/billing`
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET | `/billing/plans` | `billing.plan:list` | |
+| GET | `/billing/subscription` | `billing.subscription:read` | `TenantIdDep` |
+| POST | `/billing/subscription/activate` | `billing.subscription:update` | **PlatformOperatorDep** |
+| POST | `/billing/subscription/past-due` | `billing.subscription:update` | **PlatformOperatorDep** |
+| POST | `/billing/subscription/cancel` | `billing.subscription:delete` | `TenantIdDep` |
+| POST | `/billing/overrides` | `billing.subscription:update` | **PlatformOperatorDep**; 201 |
+| POST | `/billing/checkout` | `billing.subscription:create` | optional Stripe |
+| POST | `/billing/webhooks/stripe` | PUBLIC | no-op unless Stripe configured |
+
+Cross-tenant billing mutations are gated by `PlatformOperatorDep` / `PLATFORM_OPERATOR_TENANT_ID`.
+
+## Items — `/items`
+
+| Method | Path | Permission |
+|---|---|---|
+| POST | `/items` | `core-api.item:create` |
+| GET | `/items` | `core-api.item:list` (`offset`, `limit` 1–100) |
+| GET | `/items/{item_id}` | `core-api.item:read` |
+| PATCH | `/items/{item_id}` | `core-api.item:update` |
+| DELETE | `/items/{item_id}` | `core-api.item:delete` (204) |
+
+:::note Frontend pairing
+The SPA sets `VITE_API_BASE_URL=http://localhost:8001/api/v1`, so feature clients call `/items` relative to that base — matching these paths.
+:::

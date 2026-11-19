@@ -1,30 +1,35 @@
 ---
 title: Theming & i18n
-sidebar_position: 5
+sidebar_position: 9
 ---
 
 # Theming & i18n
 
-## Preferences
+## Preferences (`PreferencesProvider`)
 
-Change appearance **only** through kit Preferences APIs / the `/settings` page:
+| Field | Values |
+|---|---|
+| `themeMode` | light / dark / system |
+| `colorPreset` | default / ocean / forest / contrast |
+| `locale` | en / ja |
+| `density` | comfortable / compact |
+| `sidebarCollapsed` | boolean (API exists; limited UI exposure) |
+| `timezone` / `currency` / `dateFormat` | regional (settings UI) |
 
-- Theme mode: light / dark / system
-- Color presets (kit-registered — e.g. default / ocean / forest / contrast)
-- Density
-- Language
+Setters live on the kit only — `FE-THEME001` forbids `documentElement` theme/locale writes from apps.
 
-Do not invent ad-hoc theme providers or hardcode palette values in features.
+Persistence: **`aham.preferences.v1`** in localStorage (no server sync yet).
 
-`sidebarCollapsed` exists in the preferences storage API but is **not** exposed on `/settings` in the example.
+`/settings` tabs: Appearance / Language / Regional.
 
-## Locales
+## i18n
 
-- Default locale chosen at Copier time (`en` or `ja`) and seeded by `VITE_DEFAULT_LOCALE` when no stored prefs exist
-- Core + feature locale files (`en` + `ja` in the example)
-- Always use `t()` for user-visible strings
-- Nav labels use `labelKey` so translations stay consistent
+- Bootstrap: `lib/i18n.ts` + `collectLocales(registeredModules, coreLocales)`
+- Seed default: `VITE_DEFAULT_LOCALE`
+- Namespaces: `common`, `shell`, `login`, `home`, `settings`, `catalog`, `items.*`, `categories.*`, …
+- Always `t()`; nav uses `labelKey`
+- `FE-I18N001` / `FE-I18N002` — no hardcoded copy; sibling locale keys must match
 
-## Persistence
+## Format helpers
 
-Preferences persist in **localStorage** under `aham.preferences.v1`. Syncing to a Preferences API is an open item (see template [HANDOFF](../template/handoff.mdx)).
+`formatNumber`, `formatMoney`, `formatDate`, `formatDateTime` from `@aham/ui-kit`.

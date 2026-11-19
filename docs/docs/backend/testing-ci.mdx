@@ -1,48 +1,36 @@
 ---
 title: Testing & CI
-sidebar_position: 9
+sidebar_position: 15
 ---
 
 # Testing & CI
 
-## Test types
+## Local tests
 
-| Kind | Location | Expectation |
-|---|---|---|
-| API | `tests/api/` | Real HTTP + auth; happy path, 401, 403, 404 envelope, 422 |
-| Unit | `tests/unit/` | Service + fake repository |
-| Architecture | `tests/test_architecture.py` | RBAC + structure invariants |
-| Kit | `packages/platform-kit/tests/` | Baseline unit tests (incl. SaaS spine) |
-| Fuzz | CI | Schemathesis against OpenAPI (`/openapi.json`) |
+| Kind | Location |
+|---|---|
+| API | `tests/api/` — real auth: 200/401/403/404/422 |
+| Unit | `tests/unit/` — fake repos |
+| Architecture | `tests/test_architecture.py` |
+| Kit | `packages/platform-kit/tests/` |
+| Fuzz | Schemathesis vs `/openapi.json` in CI |
 
-Coverage gate: **`fail_under = 80`** in template `pyproject.toml`.
-
-## Local loop
+Coverage: `fail_under = 80`.
 
 ```bash
-uv run dx fmt
-uv run dx lint --service core-api
-uv run dx test --service core-api
-uv run dx check
+uv run dx test --service core-api --cov
 ```
 
 ## Pre-commit
 
-Typical hooks: ruff, format, uv lock, `dx check`, pyright, gitleaks (+ standard pre-commit-hooks).
+ruff, format, uv lock, `dx check`, pyright, gitleaks.
 
-## GitHub Actions (template)
+## Example CI (mono-monolith)
 
-Approximate pipeline:
+`quality` → `plan` (`dx affected`) → `test` (Postgres **+ Redis**) → `api-fuzz` → `docker`.
 
-1. Quality (lint/type)
-2. Affected tests — Postgres (**+ Redis** for SaaS monolith CI)
-3. OpenAPI fuzz / Schemathesis (service port 8000 in CI)
-4. Docker build
-5. Microservices: OpenAPI breaking-change check (oasdiff)
-6. Poly-kit: release on `v*` tags
+Micro/poly-service add **`contract`** (oasdiff). Poly-kit: `kit-tests` + `release` on `v*`.
 
-## Editor / AI enforcement
+## Meta CI
 
-- Claude hooks and Cursor `.mdc` rules point at `AGENTS.md`
-- Baseline paths blocked unless `DX_ALLOW_BASELINE=1`
-- Commit/CI still run full-repo `dx check`
+See [Meta-repo](../getting-started/meta-repo.mdx) — matrix of Copier combinations + example drift.

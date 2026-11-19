@@ -1,0 +1,61 @@
+---
+title: Permissions & RBAC
+sidebar_position: 8
+---
+
+# Permissions & RBAC
+
+Route-level RBAC: every endpoint declares `permission=` on `SecureRouter`. This is **not** object-level ownership — see [Tenancy](./tenancy.mdx) for row scoping.
+
+## Permission string
+
+```text
+{resource}:{action}
+```
+
+Actions (`platform_kit.rbac.Action`): `read` | `list` | `create` | `update` | `delete` | `approve` | `export`.
+
+`PUBLIC` skips auth (review carefully). Wildcards in role maps: `"*"`.
+
+## mono-monolith resources
+
+From `core_api/permissions.py`:
+
+| Resource enum | Value |
+|---|---|
+| `ITEM` | `core-api.item` |
+| `IDENTITY_TENANT` | `identity.tenant` |
+| `IDENTITY_USER` | `identity.user` |
+| `IDENTITY_AUDIT` | `identity.audit` |
+| `BILLING_PLAN` | `billing.plan` |
+| `BILLING_SUBSCRIPTION` | `billing.subscription` |
+
+## Default roles
+
+| Role | Grants |
+|---|---|
+| `admin` | `["*"]` |
+| `member` | tenant list/update, user create, plan list, subscription read, full item CRUD+list |
+| `viewer` | tenant list, audit list, plan list, subscription read, item read+list |
+
+## Resolution chain
+
+`PermissionResolver`:
+
+1. Redis cache (when available)
+2. DB tables `roles` / `role_permissions` / `permissions`
+3. Fallback to code `ROLE_PERMISSIONS`
+
+## TEN001
+
+If a model table has `tenant_id`, handlers that touch it must bind tenant context via `TenantIdDep` / `principal.tid` / `PlatformOperatorDep`, or explicitly mark `# dx: cross-tenant`.
+
+## Dev tokens
+
+```bash
+uv run dx token core-api --all
+uv run dx token core-api --perm 'identity.tenant:list' --perm 'core-api.item:read' --ttl 3600
+uv run dx permissions core-api
+```
+
+`permissions.py` is **protected** — leads only (`DX_ALLOW_BASELINE=1`).

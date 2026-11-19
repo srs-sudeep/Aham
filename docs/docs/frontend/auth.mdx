@@ -1,0 +1,57 @@
+---
+title: Auth
+sidebar_position: 4
+---
+
+# Auth
+
+Controlled by `VITE_AUTH_MODE`.
+
+| Mode | Behavior |
+|---|---|
+| **`saas`** (default) | Real platform-kit identity; refresh cookie; tenant switch; MFA/SSO |
+| **`dev`** | Mock principal; no auth HTTP; pair with MSW |
+
+## Storage keys
+
+| Key | Store | Contents |
+|---|---|---|
+| `aham.auth.token` | localStorage | Access JWT or `dev-token` |
+| `aham.auth.principal` | localStorage | JSON `Principal` |
+| `aham.tenant.id` | localStorage | Active tenant (MSW / header) |
+| `aham.preferences.v1` | localStorage | Theme/locale/density/regional |
+
+## Principal
+
+```ts
+{
+  id: string
+  email?: string
+  name?: string
+  tenantId?: string
+  permissions: Permission[]  // `${resource}:${action}` | "public"
+  roles?: string[]
+}
+```
+
+`hasPermission` supports `public`, `*`, `*:*`, exact, `resource:*`, `*:action`.
+
+JWT → principal via claims `sub`, `tid`, `roles`, `permissions` (+ email/name).
+
+## SaaS login flow (`lib/auth.ts`)
+
+1. `POST /auth/login` → tokens **or** `{requires_tenant_selection}` **or** `{requires_mfa}`
+2. `POST /auth/select-tenant` / `POST /auth/mfa/complete`
+3. SSO: `POST /auth/sso/start` → IdP → `/login?sso=1` → `POST /auth/refresh` (cookie)
+4. `GET /auth/tenants`, `POST /auth/switch-tenant`, `POST /auth/logout`
+5. Auto-refresh on 401 (skipped for session endpoint regex)
+
+Access token in `Authorization: Bearer`; refresh via httpOnly cookie when backend `TOKEN_DELIVERY` includes cookie.
+
+## Dev login
+
+`DEV_PRINCIPAL` grants `items:*`, `categories:*`, `tenantId: "acme"`, sets session with `dev-token`.
+
+## Provider stack
+
+`PreferencesProvider` → `I18nextProvider` + `LocaleSync` → `AuthProvider` → `AppQueryProvider` → `TenantGate` → `ApiProvider` + `Toaster`.

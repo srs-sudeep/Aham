@@ -1,0 +1,38 @@
+---
+title: Testing
+sidebar_position: 11
+---
+
+# Frontend testing
+
+## Vitest
+
+- Config in `apps/web/vite.config.ts` (env `node`)
+- Setup: `apps/web/src/test/setup.ts` (Testing Library)
+- Colocated `*.test.ts[x]` under features (exempt from style rules)
+- Kit testing helpers: `TestProviders`, `createTestQueryClient`
+
+```bash
+pnpm test
+pnpm --filter @aham/ui-kit test
+```
+
+## Playwright
+
+```bash
+pnpm --filter ./apps/web e2e
+```
+
+Smoke under `apps/web/e2e/`. Note: some layout files are `.jinja` in the template — e2e expects a generated/rendered project.
+
+## Storybook (ui-kit)
+
+```bash
+pnpm --filter @aham/ui-kit storybook   # :6006
+```
+
+Theme/density toolbar included.
+
+## Production image
+
+`frontend/web-spa` ships `nginx/` + Dockerfile for a static SPA build behind nginx — pair with the SaaS API in compose/k8s as needed.

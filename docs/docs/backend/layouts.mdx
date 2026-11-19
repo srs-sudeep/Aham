@@ -5,56 +5,14 @@ sidebar_position: 3
 
 # Layouts & variants
 
-Copier answers choose the repository shape. This repo ships one example per major combination.
+| Variant | Layout | Arch | Messaging | Manager | SaaS in tree | Contracts | Compose |
+|---|---|---|---|---|---|---|---|
+| `mono-monolith` | monorepo | monolith | none | none | identity+billing | no | pg+redis |
+| `mono-micro-kafka-nx` | monorepo | micro | kafka | nx | no* | yes | pg+kafka |
+| `mono-micro-moon` | monorepo | micro | none | moon | no* | no | pg |
+| `poly-kit` | kit | n/a | n/a | none | templates | yes | none |
+| `poly-service-kafka` | service | micro | kafka | none | no* | via kit | pg+kafka |
 
-## Comparison matrix
+\*Regenerate with `platform_profile=saas` for SaaS. Micro examples ship a single `core-api` today.
 
-| Variant | Layout | Arch | Messaging | Manager | Kit location | SaaS modules | Contracts | Compose |
-|---|---|---|---|---|---|---|---|---|
-| `mono-monolith` | monorepo | monolith | none | none | workspace | identity + billing | no | Postgres + Redis |
-| `mono-micro-kafka-nx` | monorepo | micro | kafka | nx | workspace | no* | yes | Postgres + Kafka |
-| `mono-micro-moon` | monorepo | micro | none | moon | workspace | no* | no | Postgres |
-| `poly-kit` | polyrepo_kit | n/a | n/a | none | *is* the kit | templates only | yes | none |
-| `poly-service-kafka` | polyrepo_service | micro | kafka | none | path/git pin | no* | via kit | Postgres + Kafka |
-
-\*Shipped examples lack SaaS modules until regenerated with `platform_profile=saas`. Micro examples contain a **single** `core-api` (+ `items`) today.
-
-All service examples publish the API on host port **8001 → 8000**.
-
-## Monorepo monolith
-
-- Exactly one service (`dx` refuses a second)
-- Modules grow inside that service
-- Best default for most SaaS products starting out
-
-## Monorepo microservices
-
-- Designed for many `services/*`
-- Shared `platform-kit` (+ `contracts` if Kafka)
-- CI can run OpenAPI breaking-change checks (oasdiff)
-- Optional Nx or moon for affected graphs
-- Post-copy with saas scaffolds `identity` + `billing` **services**
-
-## Polyrepo kit
-
-- Product **is** the baseline library
-- CI publishes GitHub Releases on `v*` tags
-- Edits need `DX_ALLOW_BASELINE=1`
-- Includes SaaS CLI templates for `dx new-saas`
-
-## Polyrepo service
-
-- Flat service at repo root (`src/<package>/`, Alembic, Dockerfile)
-- Depends on kit via git tag (or local path pin in this monorepo’s example)
-- Compose still brings Postgres / Kafka as needed
-- `.env` lives at **repo root** (unlike monorepo `services/<name>/.env`)
-
-## Choosing
-
-```text
-Single team, one deployable API     → monorepo monolith (+ saas)
-Multiple deployables, shared team   → monorepo microservices
-Platform team owns kit separately   → polyrepo_kit + polyrepo_service
-Need async domain events            → messaging=kafka
-Need external IdP only              → platform_profile=api
-```
+All services: host **8001→8000**.

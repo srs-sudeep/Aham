@@ -5,102 +5,65 @@ sidebar_position: 2
 
 # Architecture
 
-## Protected baseline vs product code
+## Protected vs product
 
 ```text
-packages/platform-kit/     # protected — leads only (DX_ALLOW_BASELINE=1)
-packages/contracts/        # event schemas when messaging enabled (also protected)
-services/<service>/        # applications you own
+packages/platform-kit/     # protected
+packages/contracts/        # protected when present
+services/<service>/
   src/<package>/
     main.py
     settings.py
-    permissions.py         # protected role map — ask a lead
-    modules/<feature>/     # your modules
+    permissions.py         # protected
+    modules/<feature>/
 ```
 
-Also treated as protected in AGENTS / hooks: `.github/`, `.claude/`, `.cursor/`, root `pyproject.toml`, `AGENTS.md`.
+Also protected: `.github/`, `.claude/`, `.cursor/`, root `pyproject.toml`, `AGENTS.md`.
 
-Services **never import each other**. Cross-service HTTP goes through `platform_kit.http.ServiceClient`.
+Services never import each other — use `ServiceClient`.
 
 ## Module layers
 
 ```text
-router.py  →  service.py  →  repository.py  →  models.py
-     ↓              ↓
- schemas.py    dependencies.py (wiring only)
+router → service → repository → models
+   ↓         ↓
+schemas   dependencies (wiring only)
 ```
 
-| File | Responsibility |
+| File | Rules |
 |---|---|
-| `router.py` | HTTP only: `SecureRouter`, parse → call service → return schema. ≤ 6 statements per endpoint |
-| `schemas.py` | Pydantic request/response. No SQLAlchemy |
-| `service.py` | Business logic. No FastAPI/Starlette. Raises `AppError` subclasses |
-| `repository.py` | DB queries (`BaseRepository`). No schemas, no HTTP |
-| `models.py` | SQLAlchemy tables only |
-| `dependencies.py` | Builds the service for a request (only file that may combine layers) |
-| `errors.py` | Optional domain errors |
-| `events.py` | Optional subscribers |
-| `constants.py` | Optional enums/constants |
-| `phase2.py` | Optional SaaS phase-2 helpers (allowed by `dx`) |
-| `scim_router.py` | Optional SCIM router (wired via `extra_routers`) |
+| `router.py` | `SecureRouter`; ≤ 6 statements; parse → service → schema |
+| `schemas.py` | Pydantic only |
+| `service.py` | No FastAPI; raise `AppError`s; `await self.repo.commit()` once |
+| `repository.py` | `BaseRepository`; flush only |
+| `models.py` | SQLAlchemy only |
+| `dependencies.py` | Only place that combines layers |
+| Optional | `errors`, `events`, `constants`, `phase2`, `scim_router` |
 
-No other files or nested folders inside a module. No loose `.py` files under `modules/`.
-
-`create_app` can also mount `extra_routers` (identity uses this for `/scim/v2`).
-
-## Import rules
+## Import bans
 
 - router ↛ repository / models / sqlalchemy
-- service ↛ fastapi / router
+- service ↛ fastapi
 - repository ↛ service / schemas / fastapi
-- Another module: only through its `service`, `schemas`, or `errors`
-
-## Route-level RBAC
-
-Every endpoint declares `permission=` (or `PUBLIC`, which reviewers will question):
-
-```python
-router = SecureRouter(prefix="/purchase-orders", tags=["purchase-orders"])
-
-@router.post(
-    "",
-    permission=Permission(Resource.PURCHASE_ORDER, Action.CREATE),
-    summary="Create purchase order",
-    status_code=201,
-)
-async def create_purchase_order(
-    body: PurchaseOrderCreate,
-    svc: PurchaseOrderServiceDep,
-) -> PurchaseOrderRead:
-    return await svc.create(body)
-```
-
-This authorizes the **route**, not object-level ownership. Tenant/IDOR scoping is separate (SaaS: `TenantScopedMixin` + RLS).
-
-Roles resolve through `PermissionResolver`: Redis → DB (`roles` / `role_permissions`) → code `ROLE_PERMISSIONS` fallback.
+- Cross-module: only via `service` / `schemas` / `errors`
 
 ## Errors
 
-Raise kit errors or subclasses:
+Raise: `NotFoundError`, `ConflictError`, `ForbiddenError`, `UnauthorizedError`, `BadRequestError`, `UnprocessableError`, `ExternalServiceError` (+ `PaymentRequiredError` in kit).
 
-- `NotFoundError`, `ConflictError`, `ForbiddenError`, `UnauthorizedError`
-- `BadRequestError`, `UnprocessableError`, `ExternalServiceError`
+Envelope:
 
-- `message` — safe for end users
-- `detail=` — developer text (logged always; returned in dev/test)
-- Envelope: `{"error": {"code", "message", "request_id", "fields"?, "debug"?}}`
+```json
+{"error": {"code": "...", "message": "...", "request_id": "...", "fields": {}, "debug": {}}}
+```
 
-Never `HTTPException`, hand-rolled error dicts, or bare `except:`.
+No `HTTPException`, no bare `except: pass` (`ERR001`/`ERR002`).
 
 ## Logging
 
 ```python
 log = get_logger(__name__)
-log.info("purchase_order_created", purchase_order_id=str(po.id))
+log.info("item_created", item_id=str(item.id))
 ```
 
-Snake_case event names; structured key/values; no f-string log messages; no `print`.
-
-## Database transactions
-
-Repositories `flush`. The **service** calls `await self.repo.commit()` once per write use-case (`CODE001` bans raw `session.commit()`). Schema changes: `uv run dx db revision <service> -m "..."`.
+No `print` / `logging.getLogger` (`LOG001`/`LOG002`).

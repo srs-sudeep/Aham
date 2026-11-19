@@ -1,0 +1,46 @@
+---
+title: Catalog module
+sidebar_position: 6
+---
+
+# Catalog module (reference)
+
+Path: `apps/web/src/modules/catalog/`.
+
+Two features: **items** (full CRUD) and **categories** (list/detail + dialogs).
+
+## Items
+
+| Layer | Files |
+|---|---|
+| API | `items.api.ts`, `items.keys.ts`, `items.handlers.ts` |
+| Hooks | `use-items`, `use-item-mutations` |
+| Model | zod schemas, mappers, constants |
+| Views | List / Detail / Form pages + Form, Table, StatusBadge, Picker, pricing card |
+| Public | `ItemPicker`, `useItemOptions`, types via feature `index.ts` |
+
+### HTTP (relative to `VITE_API_BASE_URL`)
+
+| Method | Path |
+|---|---|
+| GET | `/items?page&pageSize&q&status` |
+| GET | `/items/:id` |
+| POST | `/items` |
+| PUT | `/items/:id` |
+| DELETE | `/items/:id` |
+
+List UI uses kit `ListPage` + `QueryState` + `FilterBar`; search state in URL (zod in `model/`).
+
+## Categories
+
+| | |
+|---|---|
+| Routes | `/catalog/categories`, `/catalog/categories/$categoryId` |
+| API | `/categories` |
+| Permissions | `categories:list` / `read` (+ create/update/delete for mutations) |
+| Shared | `shared/api/categories-lookup.api.ts`, `CategoryPicker` |
+
+## Cross-feature / cross-module
+
+- Same module: import feature `index.ts` only
+- Other modules: import catalog `public.ts` only

@@ -5,7 +5,7 @@ sidebar_position: 2
 
 # Copier options
 
-All questions live in `template/copier.yml`.
+Source: `template/copier.yml`.
 
 ## Meta
 
@@ -15,60 +15,43 @@ All questions live in `template/copier.yml`.
 | `_answers_file` | `.copier-answers.yml` |
 | `_subdirectory` | `frontend` if `stack=frontend` else `backend` |
 
-## Validators
-
-- `project_slug`, `first_service`: `^[a-z][a-z0-9-]+$`
+Validators: `project_slug`, `first_service` → `^[a-z][a-z0-9-]+$`
 
 ## Shared
 
-| Question | Choices / default | Effect |
+| Question | Default | Effect |
 |---|---|---|
-| `stack` | `backend` (default) \| `frontend` | Selects template subdirectory |
-| `project_name` | default `My Platform` | Human title |
-| `project_slug` | lowercase + dashes (from name) | Machine name / package hints |
-| `ai_tools` | multiselect: claude, cursor (default both) | Emits `CLAUDE.md` / `.claude` and/or `.cursor/rules` |
+| `stack` | `backend` | Subdirectory selection |
+| `project_name` | `My Platform` | Human title |
+| `project_slug` | from name | Machine name |
+| `ai_tools` | `[claude, cursor]` | Claude hooks / Cursor rules |
 
 ## Backend
 
-| Question | When | Choices / default | Effect |
+| Question | When | Default | Effect |
 |---|---|---|---|
-| `repo_layout` | `stack == backend` | `monorepo` (default) \| `polyrepo_service` \| `polyrepo_kit` | Workspace vs single service vs kit publisher |
-| `architecture` | monorepo | `monolith` (default) \| `microservices` | One service vs many; OpenAPI break check for micro |
-| `first_service` | not kit | default `core-api` | First scaffolded service name |
-| `messaging` | not kit | `none` (default) \| `kafka` | Compose broker, FastStream, outbox, contracts |
-| `platform_profile` | not kit | `saas` (default) \| `api` | Local IdP/Redis/tenancy/entitlements vs external JWT only |
-| `repo_manager` | monorepo | `none` (default) \| `nx` \| `moon` | Affected CI / project graph (`dx` always available) |
-| `kit_git_url` | polyrepo_service | default GitHub placeholder | Pin platform-kit (https/ssh URL — **not** `git@host:path` scp form) |
-| `kit_version` | polyrepo_service | default `v0.1.0` | Git tag to pin |
-| `python_version` | backend | `3.12` (default) \| `3.13` | `.python-version` + requires-python |
+| `repo_layout` | backend | `monorepo` | monorepo \| polyrepo_service \| polyrepo_kit |
+| `architecture` | monorepo | `monolith` | monolith \| microservices |
+| `first_service` | not kit | `core-api` | First service name |
+| `messaging` | not kit | `none` | none \| kafka |
+| `platform_profile` | not kit | **`saas`** | saas \| api |
+| `repo_manager` | monorepo | `none` | none \| nx \| moon |
+| `kit_git_url` | polyrepo_service | GitHub placeholder | https/ssh only (no scp form) |
+| `kit_version` | polyrepo_service | `v0.1.0` | Git tag pin |
+| `python_version` | backend | `3.12` | 3.12 \| 3.13 |
 
 ## Frontend
 
-| Question | Choices / default | Effect |
+| Question | Default | Effect |
 |---|---|---|
-| `api_base_url` | `http://localhost:8001` | Seeded into Vite env |
-| `default_locale` | `en` (default) \| `ja` | Initial i18n locale |
+| `api_base_url` | **`http://localhost:8001/api/v1`** | Vite `VITE_API_BASE_URL` (include API prefix) |
+| `auth_mode` | **`saas`** | saas (real IdP) \| dev (mock principal) |
+| `default_locale` | `en` | en \| ja |
 
-## Derived flags (not asked)
+## Derived flags
 
 | Flag | Meaning |
 |---|---|
-| `is_microservices` | polyrepo service **or** monorepo microservices |
-| `has_kit_source` | kit lives in-repo (not polyrepo service) |
+| `is_microservices` | polyrepo_service **or** monorepo microservices |
+| `has_kit_source` | kit in-repo (not polyrepo_service) |
 | `is_saas` | `platform_profile == saas` |
-
-## Decision cheat sheet
-
-```text
-Need one deployable API with auth/billing?
-  → monorepo + monolith + saas + messaging none
-
-Need many services + events?
-  → monorepo + microservices + kafka + nx|moon
-
-Kit owned by a platform team, services in other repos?
-  → polyrepo_kit  +  polyrepo_service (pin kit tag)
-
-UI only?
-  → stack=frontend
-```

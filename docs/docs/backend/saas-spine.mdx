@@ -1,85 +1,50 @@
 ---
 title: SaaS spine
-sidebar_position: 6
+sidebar_position: 10
 ---
 
 # SaaS spine
 
-When `platform_profile=saas` (default for new backends), Copier and `dx new-saas` add a local multi-tenant SaaS baseline.
+Enabled when `platform_profile=saas` (default).
 
-## What you get
+## Capabilities
 
-| Capability | Details |
+| Area | Details |
 |---|---|
-| Local IdP | Register/login; access JWT + hashed refresh in Redis |
-| Tenancy | Memberships, org switcher, `tid` claim in JWT |
-| RBAC roles | DB tables + `PermissionResolver` (Redis → DB → code fallback) |
-| Entitlements | Plans, features, quotas — `require_feature` / `require_quota` |
-| Audit | Enterprise-shaped audit trail helpers |
-| Redis | Required (`REDIS_URL`) for refresh + rate limit |
-| Billing module | Plans/subscriptions; default **ManualProvider** |
+| Local IdP | register/login; access JWT + hashed refresh in Redis |
+| Cookies | httpOnly refresh under `/api/v1/auth` (`TOKEN_DELIVERY=both`) |
+| Tenancy | memberships, select/switch tenant, `tid` claim |
+| Entitlements | plans/features/quotas |
+| Audit | `/auth/audit` |
+| Rate limits | login/register |
+| Billing | ManualProvider default; Stripe optional |
 
-## Routes (mono-monolith, all under `/api/v1`)
-
-### Identity — `/auth/*`
-
-| Area | Paths |
-|---|---|
-| Session | `/auth/register`, `/login`, `/select-tenant`, `/refresh`, `/logout` |
-| Tenancy | `/auth/tenants`, `/switch-tenant` |
-| Invites | `/auth/invitations`, `/invitations/accept` |
-| Admin | `/auth/users/disable`, `/auth/audit` |
-| MFA | `/auth/mfa/enroll`, `/confirm`, `/complete` |
-| SSO | `/auth/sso/start`, `/sso/callback`, `/sso/oidc` |
-| API keys | `/auth/api-keys`, `/auth/api-keys/{key_id}`, `/auth/scim-token` |
-
-### SCIM — `/scim/v2/*`
-
-Mounted via identity `extra_routers` (not under `/auth`):
-
-- `/scim/v2/Users`
-
-### Billing — `/billing/*`
-
-| Paths |
-|---|
-| `GET /billing/plans` |
-| `GET /billing/subscription` |
-| `POST /billing/subscription/activate` \| `past-due` \| `cancel` |
-| `POST /billing/overrides` |
-| `POST /billing/checkout` |
-| `POST /billing/webhooks/stripe` |
-
-Phase-2 routes are **scaffolds** with Protocol ports in `platform_kit.providers`. Stripe/OIDC need real config (`platform-kit[stripe]`, `STRIPE_*`, IdP settings) before they behave as production integrations.
-
-## Scaffolding
+## Scaffold
 
 ```bash
-# Monolith / polyrepo_service — modules inside the service
-uv run dx new-saas core-api
-
-# Microservices — separate services (post-copy does this)
-uv run dx new-service identity --with-saas
+uv run dx new-saas core-api                 # modules in-service
+uv run dx new-service identity --with-saas  # micro layout
 uv run dx new-service billing --with-saas
 ```
 
-Compose:
+Compose: `postgres` + **`redis`**.
 
-```bash
-docker compose up -d postgres redis
-# env: services/core-api/.env with REDIS_URL + PLATFORM_PROFILE=saas
-```
+## Phase 2 (implemented scaffolds)
 
-## Domain tables & tenancy
+| Feature | Endpoints / notes |
+|---|---|
+| TOTP MFA | `/auth/mfa/enroll\|confirm\|complete` |
+| OIDC SSO | `/auth/sso/start\|callback`, `/auth/sso/oidc` |
+| API keys | `aham_…`, `X-API-Key`, `/auth/api-keys` |
+| SCIM | `/scim/v2/Users` + `/auth/scim-token` |
+| Stripe | `/billing/checkout`, `/billing/webhooks/stripe` with `[stripe]` |
 
-- Prefer `TenantScopedMixin` on tenant-owned models
-- Use RLS helpers for defense-in-depth against IDOR
-- Remember: route `permission=` ≠ row-level ownership
+Needs real IdP/Stripe config for production behavior.
+
+## Full route tables
+
+See [API reference](./api-reference.mdx).
 
 ## API-only profile
 
-`platform_profile=api` skips the local IdP/Redis SaaS spine and verifies JWTs from an external IdP (JWKS). Use when auth lives elsewhere.
-
-## Example
-
-`backend/mono-monolith` is the reference SaaS monolith with identity + billing + items + Redis in compose. The example currently ships **items** API/unit tests; identity/billing are covered mainly by kit tests (`test_saas_spine.py`) — add service-level tests when you change those modules.
+`platform_profile=api` — verify JWT via JWKS; no local IdP/Redis requirement.

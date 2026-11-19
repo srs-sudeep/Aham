@@ -1,0 +1,30 @@
+---
+title: dx rule codes
+sidebar_position: 14
+---
+
+# Backend dx rule codes
+
+```bash
+uv run dx rules
+```
+
+Suppress one line: `# dx: ignore[CODE]`. Project ignore: `[tool.dx] ignore` in pyproject.
+
+| Code | Meaning |
+|---|---|
+| `STR001`–`STR005`, `STR010` | Module structure / `__init__` / snake_case / `<Entity>Service` |
+| `RBAC001`–`RBAC003` | SecureRouter / `permission=` / module-level router |
+| `API001`–`API005` | prefix+tags, summary, async, return type, body length |
+| `LAY001`–`LAY002`, `LAY010`, `LAY020` | Layer / cross-module / cross-service imports |
+| `ERR001`–`ERR002` | No HTTPException; no bare `pass` |
+| `LOG001`–`LOG002` | No print / logging.getLogger |
+| `CFG001` | No `os.environ` |
+| `HTTP001` | No httpx/requests/aiohttp in product layers |
+| `SQL001` | No f-string SQL |
+| `ASYNC001` | No blocking calls in async |
+| `MEM001`–`MEM003` | Engine/client leak patterns |
+| `CODE001` | commit only via repository |
+| `TEN001` | tenant tables must bind TenantIdDep / principal.tid / PlatformOperatorDep (or `# dx: cross-tenant`) |
+
+CI and pre-commit run **full-repo** `dx check` (`--format github` in Actions).

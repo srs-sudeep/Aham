@@ -5,45 +5,39 @@ sidebar_position: 1
 
 # Getting started
 
-This guide takes you from zero to a generated Aham project and a local run of the example stacks.
-
 ## Prerequisites
 
-### Backend
-
-| Tool | Notes |
+| Stack | Tools |
 |---|---|
-| [uv](https://docs.astral.sh/uv/) | Python package/workspace manager |
-| Python 3.12+ | Selected during Copier |
-| Docker + Compose | Postgres, Redis (SaaS), Kafka (optional) |
-| Copier ≥ 9.4 | Via `uvx copier` |
-
-### Frontend
-
-| Tool | Notes |
-|---|---|
-| Node ≥ 20 | Required by Vite / ui-kit |
-| pnpm | Workspace package manager |
-| Copier ≥ 9.4 | Via `uvx copier` |
+| Backend | [uv](https://docs.astral.sh/uv/), Python 3.12+, Docker Compose, Copier ≥ 9.4 (`uvx copier`) |
+| Frontend | Node ≥ 20, pnpm, Copier ≥ 9.4 |
+| Docs | Node ≥ 20 (`cd docs && npm install`) |
 
 ## Two ways to explore
 
-1. **Use an example already in this repo** — fastest for learning (`backend/mono-monolith`, `frontend/web-spa`).
-2. **Generate a fresh project** from `./template` — use this when starting real work.
+1. **Run the examples** in this repo (`backend/mono-monolith` + `frontend/web-spa`) — fastest for learning.
+2. **Generate a fresh project** from `./template` — use for real work.
 
 ```bash
-# From the Aham repo root
 uvx copier copy --trust ./template my-new-project
+# stack: backend | frontend
 ```
 
-You will be asked `stack: backend | frontend`, then layout-specific questions. Details: [Generate a project](./generate-project.mdx).
+## Recommended first path (SaaS end-to-end)
 
-## Recommended first path
+1. Start **mono-monolith** (Postgres + Redis + `core-api` on `:8001`)
+2. Start **web-spa** with `VITE_AUTH_MODE=saas` and `VITE_API_BASE_URL=http://localhost:8001/api/v1`
+3. Open API docs at `http://localhost:8001/docs` and SPA at `http://localhost:5173`
+4. Register / login / switch tenant in the SPA; exercise `/catalog/items`
 
-If you want the full SaaS experience locally:
+Details: [Local development](./local-dev.mdx).
 
-1. Run **`backend/mono-monolith`** (identity + billing + items, Postgres + Redis on compose).
-2. Run **`frontend/web-spa`** pointed at `http://localhost:8001`.
-3. Open API docs at `http://localhost:8001/docs` and the SPA at `http://localhost:5173`.
+## UI-only (no backend)
 
-See [Local development](./local-dev.mdx) for exact commands.
+```bash
+cd frontend/web-spa
+# .env: VITE_AUTH_MODE=dev and VITE_USE_MOCKS=1
+pnpm install && pnpm dev
+```
+
+MSW serves in-memory `/items` and `/categories` per tenant header.

@@ -1,0 +1,54 @@
+---
+title: Example drift checks
+sidebar_position: 5
+---
+
+# Example drift checks
+
+Examples under `backend/` and `frontend/` must match `template/`. The gate is:
+
+```bash
+./scripts/check-examples.sh
+```
+
+## What fails the gate
+
+| Check | Failure meaning |
+|---|---|
+| Nested `.git` | Someone ran `git init` inside an example |
+| Kit `diff -rq` | Example `packages/platform-kit` ≠ template kit |
+| Frontend render diff | `web-spa` hand-edited vs Copier output |
+| Monolith render diff | Scaffold files drifted (excluding `services/` + postgres init) |
+
+## Canonical render answers
+
+**Frontend** (`web-spa`):
+
+```bash
+uvx copier copy --trust --defaults --skip-tasks \
+  --data stack=frontend \
+  --data project_name="Web SPA" --data project_slug=web-spa \
+  --data auth_mode=saas --data default_locale=en \
+  template /tmp/out
+```
+
+**Backend** (`mono-monolith`):
+
+```bash
+uvx copier copy --trust --defaults --skip-tasks \
+  --data stack=backend \
+  --data project_name="My Platform" --data project_slug=my-platform \
+  --data repo_layout=monorepo --data architecture=monolith \
+  --data messaging=none --data repo_manager=none \
+  --data platform_profile=saas --data first_service=core-api \
+  template /tmp/out
+```
+
+`services/` and `infra/postgres/init` are produced by `dx new-service` / `dx new-saas`, so the script excludes them from the monolith tree diff.
+
+## Fixing drift
+
+1. Change `template/` (or kit in mono-monolith, then rsync)
+2. Re-render with the answers above
+3. Copy the result over the example (preserving `services/` / locks as needed)
+4. Re-run `./scripts/check-examples.sh`

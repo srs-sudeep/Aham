@@ -1,0 +1,33 @@
+---
+title: MSW mocks
+sidebar_position: 8
+---
+
+# MSW mocks
+
+Enable with:
+
+```bash
+VITE_AUTH_MODE=dev
+VITE_USE_MOCKS=1
+pnpm mocks:init   # writes public/mockServiceWorker.js once
+pnpm dev
+```
+
+Bootstrap: `apps/web/src/lib/mocks.ts` starts the worker when the flag is set.
+
+## Handlers
+
+Feature-local `*.handlers.ts` (e.g. `items.handlers.ts`, categories handlers):
+
+- In-memory store keyed by `X-Tenant-ID` / stored tenant
+- Seed data (items `item-1…4`, etc.)
+- Full CRUD for items
+
+There is **no silent API fallback** — without MSW (or a live API), requests fail normally.
+
+## When to use
+
+- UI development without Docker/backend
+- Storybook / Vitest with handler overrides
+- Pair with `auth_mode=dev` so login does not hit `/auth/*`

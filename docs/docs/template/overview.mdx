@@ -5,47 +5,35 @@ sidebar_position: 1
 
 # Template overview
 
-The Copier source of truth lives in `template/`.
-
 ```text
 template/
-  copier.yml          # Questions + post-copy tasks; picks subdirectory
-  backend/            # FastAPI + platform-kit Jinja tree
-  frontend/           # Vite + ui-kit Jinja tree
+  copier.yml
+  backend/     # FastAPI + platform-kit (Jinja conditionals)
+  frontend/    # Vite + ui-kit modules→features
   README.md
   HANDOFF.md
 ```
 
 ## Design goals
 
-- **One template, two stacks** — `stack` switches `_subdirectory` between `backend` and `frontend`.
-- **Layout matrix without forks** — monorepo vs polyrepo, monolith vs microservices, Kafka on/off, Nx/moon/none, SaaS vs API-only.
-- **Baseline vs product code** — kits are protected; modules/features are where teams work.
-- **Enforcement everywhere** — `dx check`, pre-commit, AI hooks, CI.
+- One Copier source, two stacks
+- Layout matrix without forking the template
+- Protected baselines (`platform-kit`, `@aham/ui-kit`); product code in modules/features
+- Enforcement: `dx check`, hooks, pre-commit, CI, **example drift**
 
-## How rendering works
+## Conditional backend tree
 
-`copier.yml` sets:
+Jinja folder names emit only what answers need:
 
-```yaml
-_subdirectory: "{{ 'frontend' if stack == 'frontend' else 'backend' }}"
-```
+- `packages/` when `has_kit_source`
+- `contracts` when kit repo or Kafka
+- `compose.yaml` / `infra/` unless `polyrepo_kit`
+- `.moon` / `nx.json` when selected
+- Redis service when `is_saas`
+- AI packs when `claude` / `cursor` selected
 
-Jinja conditionals inside each tree emit only the files needed for the chosen answers (compose services, contracts package, nx/moon configs, AI rule packs, SaaS extras, etc.).
+## Frontend tree
 
-## Relationship to examples
+Always: `apps/web`, `packages/ui-kit`, `nginx/` (production image), Copier injects `api_base_url`, `auth_mode`, `default_locale`, `project_name` into Jinja files.
 
-| Example folder | What you get in the tree |
-|---|---|
-| `backend/mono-monolith` | Monorepo monolith + identity/billing/Redis (SaaS in tree) |
-| `backend/mono-micro-kafka-nx` | Microservices + Kafka + Nx (single `core-api` + items) |
-| `backend/mono-micro-moon` | Microservices + moon, HTTP only |
-| `backend/poly-kit` | Shared platform-kit + contracts publisher |
-| `backend/poly-service-kafka` | Standalone service pinning the kit |
-| `frontend/web-spa` | Vite SPA + ui-kit + items feature |
-
-:::warning Stale answers on backend examples
-All `backend/*` `.copier-answers.yml` still point at an older `_src_path` (`fastapi-platform-template-and-cases/1-template`) and **omit** `stack` / `platform_profile`. Only `frontend/web-spa` was generated from `./template`. Layout fields in answers still match the rough matrix; regenerate backends to record current answers.
-:::
-
-Examples are **reference outputs**. Prefer regenerating them from `./template` when the template evolves (see [HANDOFF](./handoff.mdx)).
+See [Example drift](./example-drift.mdx) for how examples stay in sync.
