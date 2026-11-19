@@ -7,6 +7,8 @@ sidebar_position: 2
 
 High-level (HLA) and low-level (LLD) views of how the Aham template fits together when you run the **SaaS monolith + SPA** pairing (`backend/mono-monolith` + `frontend/web-spa`).
 
+![System overview](/img/aham-overview.jpg)
+
 ## HLA — system context
 
 ```mermaid
@@ -118,6 +120,8 @@ Rules of thumb:
 
 ## LLD — SaaS spine inside the monolith
 
+![SaaS spine layers](/img/aham-saas-spine.jpg)
+
 ```mermaid
 flowchart LR
   subgraph Identity
@@ -145,6 +149,8 @@ flowchart LR
 ```
 
 ## LLD — frontend modules → features
+
+![Catalog and Admin modules](/img/aham-modules.jpg)
 
 ```mermaid
 flowchart TB

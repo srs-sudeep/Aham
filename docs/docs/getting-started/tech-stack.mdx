@@ -1,0 +1,97 @@
+---
+title: Tech stack
+sidebar_position: 3
+---
+
+# Tech stack
+
+Visual overview of the frameworks and packages Aham ships with. Logos load from [skillicons](https://skillicons.dev) / Shields.io (same set as the root README).
+
+![System overview](/img/aham-overview.jpg)
+
+*Web app → API → Postgres + Redis*
+
+## Logos
+
+<p>
+  <img src="https://skillicons.dev/icons?i=python,fastapi,postgres,redis,docker,react,ts,vite,tailwind,nodejs&perline=10" alt="Python FastAPI Postgres Redis Docker React TypeScript Vite Tailwind Node" />
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Copier-template-blue?style=for-the-badge" alt="Copier" />
+  <img src="https://img.shields.io/badge/uv-Python_packaging-DE5FE9?style=for-the-badge" alt="uv" />
+  <img src="https://img.shields.io/badge/SQLAlchemy-2_async-D71F00?style=for-the-badge" alt="SQLAlchemy" />
+  <img src="https://img.shields.io/badge/Alembic-migrations-grey?style=for-the-badge" alt="Alembic" />
+  <img src="https://img.shields.io/badge/TanStack-Router_%2B_Query-FF4154?style=for-the-badge" alt="TanStack" />
+  <img src="https://img.shields.io/badge/Zod-schemas-3E67B1?style=for-the-badge" alt="Zod" />
+  <img src="https://img.shields.io/badge/pnpm-workspaces-F69220?style=for-the-badge" alt="pnpm" />
+  <img src="https://img.shields.io/badge/Docusaurus-docs-3ECC5F?style=for-the-badge" alt="Docusaurus" />
+</p>
+
+## How the pieces connect
+
+```mermaid
+flowchart TB
+  subgraph FE["Frontend"]
+    Vite[Vite 6]
+    React[React 19]
+    TQ[TanStack Query / Router]
+    TW[Tailwind 4]
+    KitFE["@aham/ui-kit"]
+  end
+
+  subgraph BE["Backend"]
+    FastAPI[FastAPI]
+    SA[SQLAlchemy 2 + Alembic]
+    KitBE[platform-kit]
+  end
+
+  subgraph Data
+    PG[(Postgres)]
+    Redis[(Redis)]
+  end
+
+  Vite --> React
+  React --> TQ
+  React --> KitFE
+  KitFE --> TW
+  TQ -->|"/api/v1"| FastAPI
+  FastAPI --> KitBE
+  KitBE --> SA
+  SA --> PG
+  KitBE --> Redis
+```
+
+## Backend packages
+
+| Area | Choices |
+|---|---|
+| Language | Python ≥ 3.12 · **uv** workspaces |
+| HTTP | **FastAPI** + Uvicorn |
+| Data | **SQLAlchemy 2** async · **Alembic** · **PostgreSQL** · **Redis** (SaaS) |
+| Validation | **Pydantic** / Settings |
+| Messaging (optional) | **Kafka** + FastStream + outbox |
+| Quality | **Ruff** · **Pyright** · **pytest** · **pre-commit** · `dx` |
+| Ship | **Docker Compose** |
+
+## Frontend packages
+
+| Area | Choices |
+|---|---|
+| Language | **TypeScript** · Node ≥ 20 · **pnpm** |
+| App | **Vite 6** · **React 19** |
+| Data / routes | **TanStack** Router, Query, Table |
+| Forms | **react-hook-form** · **Zod** |
+| UI | **Tailwind 4** · **`@aham/ui-kit`** |
+| i18n | **i18next** (`en` / `ja`) |
+| Mocks / tests | **MSW** · Vitest · Playwright |
+
+## Template & docs
+
+| Area | Choices |
+|---|---|
+| Generator | **Copier** |
+| Docs | **Docusaurus** + Mermaid |
+| Optional | **Nx** / **moon** |
+
+Next: [Architecture (HLA / LLD)](./architecture.mdx) · [Local development](./local-dev.mdx)

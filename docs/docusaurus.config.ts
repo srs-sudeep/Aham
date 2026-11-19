@@ -96,6 +96,7 @@ const config: Config = {
           items: [
             {label: 'Introduction', to: '/docs/intro'},
             {label: 'Architecture', to: '/docs/getting-started/architecture'},
+            {label: 'Tech stack', to: '/docs/getting-started/tech-stack'},
             {label: 'Getting started', to: '/docs/getting-started/overview'},
             {label: 'Template', to: '/docs/template/overview'},
           ],

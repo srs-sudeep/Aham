@@ -20,7 +20,8 @@ npm run build && npm run serve
 
 | Section | Highlights |
 |---|---|
-| Getting started | **HLA/LLD Mermaid diagrams**, local SaaS pairing, MSW, meta-repo drift |
+| Getting started | **HLA/LLD Mermaid + illustrations**, tech stack logos, local SaaS pairing, MSW |
+
 | Template | Copier options (`auth_mode`), generation, example drift |
 | Backend | API reference (IAM + catalog), permissions, data model, Alembic, tenancy, dx |
 | Frontend | Modules→features, auth, catalog, **admin**, MSW, FE-* codes, testing |

@@ -7,7 +7,19 @@ sidebar_position: 7
 
 Path: `apps/web/src/modules/admin/`.
 
+![Admin and catalog product surfaces](/img/aham-modules.jpg)
+
 One module with three features aligned to the SaaS spine:
+
+```mermaid
+flowchart LR
+  Admin[admin module] --> Users[/admin/users]
+  Admin --> Roles[/admin/roles]
+  Admin --> Billing[/admin/billing]
+  Users --> AuthAPI["/auth/users · invitations"]
+  Roles --> RolesAPI["/auth/roles · permissions"]
+  Billing --> BillAPI["/billing/plans · subscription"]
+```
 
 | Feature | Routes | Backend |
 |---|---|---|

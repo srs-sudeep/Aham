@@ -10,6 +10,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'getting-started/overview',
         'getting-started/architecture',
+        'getting-started/tech-stack',
         'getting-started/generate-project',
         'getting-started/local-dev',
         'getting-started/meta-repo',

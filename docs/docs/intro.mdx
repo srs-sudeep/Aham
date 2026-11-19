@@ -6,18 +6,25 @@ title: Introduction
 
 # Aham
 
-**Aham** is a Copier-driven platform scaffold: one template generates a **FastAPI backend** or a **Vite React SPA**, and this repository keeps example outputs plus a Docusaurus docs site.
+**Aham** is a starter kit for multi-company (SaaS) products: login, organizations, roles, billing hooks, and a sample business UI — packaged as a **Copier template**, with working **examples** and this **docs site**.
 
-```text
-Aham/
-├── template/          # Source of truth (stack: backend | frontend)
-│   ├── backend/       # FastAPI + platform-kit
-│   └── frontend/      # Vite + React + ui-kit (modules → features)
-├── backend/           # Rendered API examples
-├── frontend/web-spa/  # Rendered SPA example (catalog + admin)
-├── scripts/           # check-examples.sh (drift gate)
-├── docs/              # This documentation site
-└── AGENTS.md          # Meta-repo rules for humans + AI
+![Aham system overview](/img/aham-overview.jpg)
+
+*Users use the web app → the API enforces access and rules → data lives in Postgres (Redis holds sessions and entitlements).*
+
+## In one picture: recipe → product
+
+![Template generate flow](/img/aham-generate-flow.jpg)
+
+*Pick backend or frontend from the template, generate a project, then customize your domain.*
+
+```mermaid
+flowchart LR
+  T[template/] --> C[Copier]
+  C --> BE[Backend API]
+  C --> FE[Web SPA]
+  BE --> Run[Run locally / Docker]
+  FE --> Run
 ```
 
 ## Mental model
@@ -28,7 +35,17 @@ Aham/
 | Product teams | Services / modules / features | Domain code via `dx` generators |
 | Copier | Project shape | Answers in `.copier-answers.yml` |
 
-Wrong structure fails in the editor (hooks), at commit (`dx check`), and in CI — including the meta-repo drift check `./scripts/check-examples.sh`.
+Wrong structure fails in the editor (hooks), at commit (`dx check`), and in CI — including `./scripts/check-examples.sh`.
+
+## What ships in the example product
+
+![Catalog and Admin modules](/img/aham-modules.jpg)
+
+| Surface | Purpose |
+|---|---|
+| **Catalog** | Categories + items (tenant-scoped CRUD) |
+| **Admin** | Users, roles/permissions, plans & subscription |
+| **Settings** | Theme, language (en/ja), density |
 
 ## Stacks at a glance
 
@@ -37,15 +54,17 @@ Wrong structure fails in the editor (hooks), at commit (`dx check`), and in CI �
 - Python 3.12+, FastAPI, SQLAlchemy 2 async, Alembic, uv, Ruff, Pyright
 - Layouts: monorepo monolith | microservices | polyrepo kit | polyrepo service
 - Optional Kafka (FastStream + outbox + contracts)
-- Default **SaaS spine**: local IdP, Redis refresh, tenancy, entitlements, audit, **IAM admin APIs** (users/roles/permissions), billing; Phase 2 SSO/SCIM/API keys/MFA; optional Stripe
+- Default **SaaS spine**: local IdP, Redis refresh, tenancy, entitlements, IAM admin APIs, billing; Phase 2 SSO/SCIM/API keys/MFA; optional Stripe
 - Showcase catalog: tenant-scoped `categories` + `items` with `require_feature("catalog")`
 
 ### Frontend
 
 - Vite 6, React 19, TanStack Router/Query, Tailwind 4, pnpm
 - **ERP layout**: `modules/<module>/features/<feature>/`
-- Real **SaaS auth** (`VITE_AUTH_MODE=saas`) or **dev** mock + MSW
-- Reference modules: **catalog** (items + categories) and **admin** (users, roles, billing)
+- Real **SaaS auth** or **dev** mock + MSW
+- Reference modules: **catalog** and **admin**
+
+Full package list with logos: [Tech stack](./getting-started/tech-stack.mdx).
 
 ## Example matrix
 
@@ -64,7 +83,7 @@ Edit **`template/`** (and develop kit code in `backend/mono-monolith/packages/pl
 
 ## Where to go next
 
-- [Architecture (HLA / LLD)](./getting-started/architecture.mdx) — Mermaid system + module diagrams
+- [Architecture (HLA / LLD)](./getting-started/architecture.mdx)
+- [Tech stack](./getting-started/tech-stack.mdx)
 - [Getting started](./getting-started/overview.mdx)
-- [Meta-repo workflow](./getting-started/meta-repo.mdx)
 - [Backend](./backend/overview.mdx) · [Frontend](./frontend/overview.mdx) · [Template](./template/overview.mdx)

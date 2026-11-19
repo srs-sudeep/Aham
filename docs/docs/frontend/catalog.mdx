@@ -7,7 +7,18 @@ sidebar_position: 6
 
 Path: `apps/web/src/modules/catalog/`.
 
+![Catalog product surface](/img/aham-modules.jpg)
+
 Two features: **items** (full CRUD) and **categories** (list/detail + dialogs). Both are tenant-scoped on the backend and gated by the `catalog` entitlement for mutating routes.
+
+```mermaid
+flowchart LR
+  Cat[catalog module] --> Categories[features/categories]
+  Cat --> Items[features/items]
+  Categories --> API1["/categories"]
+  Items --> API2["/items"]
+  Items -.->|"CategoryPicker"| Categories
+```
 
 ## Permissions
 

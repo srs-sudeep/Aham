@@ -5,6 +5,15 @@ sidebar_position: 3
 
 # Local development
 
+![System overview](/img/aham-overview.jpg)
+
+```mermaid
+flowchart LR
+  SPA["SPA :5173"] -->|api/v1| API["core-api :8001"]
+  API --> PG[(Postgres :5432)]
+  API --> R[(Redis :6379)]
+```
+
 ## Backend — mono-monolith (SaaS)
 
 ```bash

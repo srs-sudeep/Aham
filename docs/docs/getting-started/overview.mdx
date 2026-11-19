@@ -5,6 +5,8 @@ sidebar_position: 1
 
 # Getting started
 
+![Template → generate → your project](/img/aham-generate-flow.jpg)
+
 ## Prerequisites
 
 | Stack | Tools |
@@ -25,7 +27,15 @@ uvx copier copy --trust ./template my-new-project
 
 ## Recommended first path (SaaS end-to-end)
 
-1. Skim [Architecture (HLA / LLD)](./architecture.mdx) for the system picture
+```mermaid
+flowchart LR
+  A[Architecture docs] --> B[Start API<br/>:8001]
+  B --> C[Start SPA<br/>:5173]
+  C --> D[Register / login]
+  D --> E[Catalog + Admin]
+```
+
+1. Skim [Architecture (HLA / LLD)](./architecture.mdx) and [Tech stack](./tech-stack.mdx)
 2. Start **mono-monolith** (Postgres + Redis + `core-api` on `:8001`)
 3. Start **web-spa** with `VITE_AUTH_MODE=saas` and `VITE_API_BASE_URL=http://localhost:8001/api/v1`
 4. Open API docs at `http://localhost:8001/docs` and SPA at `http://localhost:5173`

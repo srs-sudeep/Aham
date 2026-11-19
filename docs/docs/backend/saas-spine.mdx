@@ -7,6 +7,22 @@ sidebar_position: 10
 
 Enabled when `platform_profile=saas` (default).
 
+![SaaS spine layers](/img/aham-saas-spine.jpg)
+
+```mermaid
+flowchart TB
+  Auth[Identity /auth] --> IAM[Users · Roles · Permissions]
+  Auth --> Tenancy[Tenants · memberships]
+  Billing[Billing /billing] --> Plans[Plans · features · quotas]
+  Plans --> Gate[require_feature / require_quota]
+  Gate --> Catalog[Catalog categories · items]
+  Redis[(Redis)] --- Auth
+  Redis --- Plans
+  PG[(Postgres)] --- Auth
+  PG --- Billing
+  PG --- Catalog
+```
+
 ## Capabilities
 
 | Area | Details |
