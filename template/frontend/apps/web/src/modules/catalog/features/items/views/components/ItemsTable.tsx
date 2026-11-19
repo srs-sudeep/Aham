@@ -75,12 +75,12 @@ export function ItemsTable({
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex justify-end gap-2" onClick={(event) => event.stopPropagation()}>
-            <Can permission="items:update">
+            <Can permission="core-api.item:update">
               <Button variant="ghost" size="sm" onClick={() => onEdit(row.original)}>
                 {t("items.edit")}
               </Button>
             </Can>
-            <Can permission="items:delete">
+            <Can permission="core-api.item:delete">
               <Button variant="ghost" size="sm" onClick={() => onDelete(row.original)}>
                 {t("items.delete")}
               </Button>

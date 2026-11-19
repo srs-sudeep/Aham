@@ -72,7 +72,7 @@ export default defineModule({
 export default defineFeature({
   id: "items",
   routes: itemsRoutes, // each route declares `permission`
-  nav: { labelKey: "items.title", to: "/catalog/items", permission: "items:list", icon: Package },
+  nav: { labelKey: "items.title", to: "/catalog/items", permission: "core-api.item:list", icon: Package },
   locales: { en, ja },
 });
 ```
@@ -108,7 +108,7 @@ export function useItems(search: ItemsSearch) {
 ```tsx
 <ListPage
   titleKey="items.title"
-  actions={<Can permission="items:create">…</Can>}
+  actions={<Can permission="core-api.item:create">…</Can>}
   filters={<FilterBar>…</FilterBar>}
 >
   <QueryState query={query} isEmpty={(d) => d.items.length === 0} emptyMessage={t("items.empty")}>

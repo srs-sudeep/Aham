@@ -73,10 +73,10 @@ export function CategoryDetailPage() {
             </Button>
             {category && !editing ? (
               <>
-                <Can permission="categories:update">
+                <Can permission="core-api.category:update">
                   <Button onClick={() => setEditing(true)}>{t("categories.edit")}</Button>
                 </Can>
-                <Can permission="categories:delete">
+                <Can permission="core-api.category:delete">
                   <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
                     {t("categories.delete")}
                   </Button>

@@ -76,7 +76,7 @@ export function ItemDetailPage() {
             </Button>
             {item ? (
               <>
-                <Can permission="items:update">
+                <Can permission="core-api.item:update">
                   <Button
                     onClick={() => {
                       void navigate({
@@ -88,7 +88,7 @@ export function ItemDetailPage() {
                     {t("items.edit")}
                   </Button>
                 </Can>
-                <Can permission="items:delete">
+                <Can permission="core-api.item:delete">
                   <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
                     {t("items.delete")}
                   </Button>

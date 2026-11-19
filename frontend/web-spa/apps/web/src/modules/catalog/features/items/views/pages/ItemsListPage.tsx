@@ -69,7 +69,7 @@ export function ItemsListPage() {
       titleKey="items.title"
       description={t("items.description")}
       actions={
-        <Can permission="items:create">
+        <Can permission="core-api.item:create">
           <Button
             onClick={() => {
               void navigate({ to: "/catalog/items/new" });

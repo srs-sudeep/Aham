@@ -24,8 +24,8 @@ const DEV_PRINCIPAL: Principal = {
   tenantId: "acme",
   permissions: [
     "public",
-    "items:*",
-    "categories:*",
+    "core-api.item:*",
+    "core-api.category:*",
     "identity.user:*",
     "identity.role:*",
     "identity.permission:list",

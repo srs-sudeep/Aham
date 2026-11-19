@@ -39,7 +39,7 @@ export function CategoriesTable({
             <Button variant="ghost" size="sm" onClick={() => onOpen(row.original)}>
               {t("common.view")}
             </Button>
-            <Can permission="categories:delete">
+            <Can permission="core-api.category:delete">
               <Button variant="ghost" size="sm" onClick={() => onDelete(row.original)}>
                 {t("categories.delete")}
               </Button>

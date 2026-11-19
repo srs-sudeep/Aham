@@ -74,7 +74,7 @@ export function CategoriesListPage() {
       titleKey="categories.title"
       description={t("categories.description")}
       actions={
-        <Can permission="categories:create">
+        <Can permission="core-api.category:create">
           <Button onClick={() => setCreateOpen(true)}>{t("categories.new")}</Button>
         </Can>
       }

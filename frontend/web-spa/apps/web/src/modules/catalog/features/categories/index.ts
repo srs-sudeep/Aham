@@ -9,7 +9,7 @@ export default defineFeature({
   nav: {
     labelKey: "categories.title",
     to: "/catalog/categories",
-    permission: "categories:list",
+    permission: "core-api.category:list",
   },
   locales: { en, ja },
 });

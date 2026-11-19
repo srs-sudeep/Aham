@@ -15,11 +15,11 @@ const ItemFormPage = lazy(() =>
 export const itemsRoutes: FeatureRoute[] = [
   {
     path: "/catalog/items",
-    permission: "items:list",
+    permission: "core-api.item:list",
     component: ItemsListPage,
     validateSearch: itemsSearchSchema,
   },
-  { path: "/catalog/items/new", permission: "items:create", component: ItemFormPage },
-  { path: "/catalog/items/$itemId", permission: "items:read", component: ItemDetailPage },
-  { path: "/catalog/items/$itemId/edit", permission: "items:update", component: ItemFormPage },
+  { path: "/catalog/items/new", permission: "core-api.item:create", component: ItemFormPage },
+  { path: "/catalog/items/$itemId", permission: "core-api.item:read", component: ItemDetailPage },
+  { path: "/catalog/items/$itemId/edit", permission: "core-api.item:update", component: ItemFormPage },
 ];

@@ -12,13 +12,13 @@ const CategoryDetailPage = lazy(() =>
 export const categoriesRoutes: FeatureRoute[] = [
   {
     path: "/catalog/categories",
-    permission: "categories:list",
+    permission: "core-api.category:list",
     component: CategoriesListPage,
     validateSearch: categoriesSearchSchema,
   },
   {
     path: "/catalog/categories/$categoryId",
-    permission: "categories:read",
+    permission: "core-api.category:read",
     component: CategoryDetailPage,
   },
 ];
