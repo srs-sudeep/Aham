@@ -1,0 +1,10 @@
+---
+description: Feature module rules
+globs: apps/web/src/features/**/*
+---
+
+- views: UI + hooks only; no fetch/apiClient
+- hooks: TanStack Query only; no JSX
+- api: HTTP only; no React
+- routes: path + permission; no business logic
+- locales: all user-facing copy

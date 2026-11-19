@@ -1,0 +1,42 @@
+{
+  "shell": {
+    "signedIn": "Signed in",
+    "logout": "Log out",
+    "home": "Home",
+    "settings": "Settings"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Dev login for local development",
+    "email": "Email",
+    "submit": "Continue",
+    "hint": "Uses a mock principal with items permissions"
+  },
+  "home": {
+    "title": "Dashboard",
+    "subtitle": "Core shell is fixed — add product pages as features",
+    "body": "Use the sidebar to open Items or Settings."
+  },
+  "forbidden": {
+    "title": "Forbidden",
+    "body": "You do not have permission to view this page."
+  },
+  "notFound": {
+    "title": "Not found",
+    "body": "That page does not exist."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Appearance, language, and density",
+    "appearance": "Appearance",
+    "themeMode": "Theme mode",
+    "colorPreset": "Color theme",
+    "language": "Language",
+    "density": "Density",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "comfortable": "Comfortable",
+    "compact": "Compact"
+  }
+}

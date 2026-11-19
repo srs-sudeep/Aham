@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      - id: dx-check
+        name: dx check (full repo)
+        entry: pnpm dx check
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: typecheck
+        name: typecheck
+        entry: pnpm typecheck
+        language: system
+        pass_filenames: false
+        always_run: true

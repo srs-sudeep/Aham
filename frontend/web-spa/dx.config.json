@@ -1,0 +1,4 @@
+{
+  "protected_paths": ["packages/ui-kit", "apps/web/src/routes"],
+  "features_dir": "apps/web/src/features"
+}

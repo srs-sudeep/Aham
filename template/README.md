@@ -1,14 +1,47 @@
-# FastAPI Platform Template
+# Aham Platform Template
+
+One Copier template for **backend** (FastAPI) or **frontend** (Vite + ui-kit).
+
+```bash
+uvx copier copy --trust ./template my-project
+# stack: backend | frontend
+uvx copier update --trust
+```
+
+## Stack: backend
+
+See the original FastAPI platform docs below. Source tree: [`backend/`](backend/).
+
+Questions: `repo_layout`, `architecture`, `messaging`, `repo_manager`, …  
+Baseline: **platform-kit** + `dx check` (structure, RBAC, layering, plus MEM/ASYNC/CODE rules).
+
+## Stack: frontend
+
+Source tree: [`frontend/`](frontend/).
+
+- Vite + React + TypeScript
+- TanStack Router + TanStack Query
+- Tailwind + **shadcn/ui** via `@aham/ui-kit` (tokens, presets, shell)
+- **Fixed core routes:** `/login`, AppShell `/`, `/settings`, `/forbidden`, `/not-found`
+- **Features:** `api/` · `hooks/` · `views/` · `routes/` · `locales/`
+- `/settings`: light/dark/system, color presets, language (en/ja), density
+- `pnpm dx check` — full-repo FE rules (STR/LAY/UI/RBAC/DATA/MEM/I18N/THEME/…)
+
+```bash
+pnpm install
+pnpm dev
+pnpm dx check
+pnpm dx new-feature orders
+```
+
+---
+
+# FastAPI Platform Template (backend)
 
 One Copier template for every FastAPI project, whether it is a monolith, a monorepo of microservices or a polyrepo,
 with or without Kafka, with or without Nx/moon. The baseline (RBAC, errors, logging, middleware, DB, health,
 telemetry, messaging, tooling) is written once in **platform-kit**. Teams only write **modules**: schemas,
 models, service, repository, endpoints.
-
-```bash
-uvx copier copy --trust gh:<your-org>/fastapi-platform-template my-project   # new project
-uvx copier update --trust                                                     # pull template improvements later
-```
 
 ## The questions and what they change
 
@@ -22,65 +55,17 @@ uvx copier update --trust                                                     # 
 | `repo_manager` | `none` / `nx` / `moon` | `none` = the built-in `dx` CLI does everything; nx/moon get project files + affected CI |
 | `ai_tools` | `claude`, `cursor` | `CLAUDE.md` + `.claude/` hooks & commands; `.cursor/rules/*.mdc` |
 
-Client A (polyrepo): generate one `polyrepo_kit` repo, then one `polyrepo_service` repo per service.
-Client B (monorepo): one `monorepo` repo, then `uv run dx new-service <name>` per service.
+## How the rules are enforced
 
-## How the rules are enforced (the same rules everywhere)
+Backend and frontend each run **full-repo** `dx check` on commit and CI (not only the diff). AI hooks may scope to edited files for speed.
 
-The rules live in one place, `platform_kit/cli/checks.py` (`dx check`), plus Ruff and Pyright config.
-
-1. **While typing.** `SecureRouter` verb methods make `permission=` and `summary=` *required* keyword arguments, so
-   Pyright underlines a missing permission immediately. Ruff's banned-API rule flags `HTTPException` and `requests`.
-   The `dx watch` VS Code/Cursor task feeds architecture violations into the Problems panel.
-2. **When an AI edits.** Claude Code `PreToolUse` blocks edits to protected paths. `PostToolUse` formats, lints and
-   structure-checks the edited file, and exit code 2 sends the problems back to Claude to fix. Cursor gets scoped `.mdc` rules.
-3. **On commit.** pre-commit runs ruff, format, uv-lock, dx check, pyright and gitleaks.
-4. **On the PR.** CI runs: quality (with inline PR annotations), then affected tests on Postgres with a coverage gate,
-   then Schemathesis fuzzing from the OpenAPI spec, then the oasdiff breaking-change check (microservices), then the Docker build.
-5. **At runtime.** `create_app()` refuses to start if any route lacks a permission. `tests/test_architecture.py` runs `dx check` as a test.
-
-`uv run dx rules` lists all 26 rule codes (structure, RBAC, layering, errors, logging, config, SQL injection, blocking calls).
-
-Authorization is **route-level RBAC** (`Resource:Action` on SecureRouter), not object-level PBAC — permissions gate endpoints, not individual rows.
-
-## Errors and logs
-
-Every error has a user `message` (always returned) and a developer `detail` (always logged; returned only in dev/test,
-**never** in prod). There is one envelope for every status code:
-`{"error": {"code", "message", "request_id", "fields"?, "debug"?}}`.
-Logs are JSON (console in dev), and every line carries the same fields: timestamp, level, event, service, env, request_id, user_id, trace_id.
+`uv run dx rules` / `pnpm dx rules` lists rule codes for that stack.
 
 ## No Kubernetes
 
-Every service is a non-root Docker image with a healthcheck and migrations-on-start. `dx up` merges the root
-`compose.yaml` with each `services/*/compose.service.yaml`. The same images run on one VM with Compose, or on
-Azure Container Apps / ECS Fargate / Cloud Run (see `infra/README.md`).
+Every backend service is a non-root Docker image with a healthcheck and migrations-on-start.
 
-## Layout of this template repo
+## Verified / to verify
 
-```
-copier.yml                                   questions + post-generation tasks
-template/                                    rendered into the new project
-  packages/platform-kit/src/platform_kit/    the baseline (protected in generated repos)
-    app.py config.py errors.py logging.py middleware.py rbac.py security.py
-    db.py health.py http.py telemetry.py messaging.py testing.py
-    cli/  main.py checks.py scaffold.py hooks.py config.py
-          templates/service/**  templates/module/**   <- single source of truth for new services/modules
-  packages/contracts/                        event schemas (kafka / kit repo only)
-  .github/  .claude/  .cursor/  .vscode/  AGENTS.md  compose.yaml  infra/  pyproject.toml ...
-```
-
-## Verified while building / to verify on first use
-
-Verified: all 5 layout combinations render without errors; every generated TOML/YAML/JSON file parses and every Python file compiles;
-generated services pass `dx check` with zero violations; the checker's own test suite (13 tests) passes; both Claude hooks return the right exit codes.
-
-Not yet run (the build environment had no network access to install FastAPI etc.): the runtime test suites and the
-generated CI pipeline. After generating your first project, run `uv run dx test` and push a PR to see CI run once.
-Pin the `rev:` versions in `.pre-commit-config.yaml` with `uv run pre-commit autoupdate`.
-
-## Extending the baseline
-
-- **New rule:** add a code to `RULES` in `checks.py`, implement it, add a test in `tests/test_checks.py`.
-- **New module file type:** add it to `[tool.dx] module_optional` and `LAYER_RULES`.
-- **GitLab / Azure DevOps:** port `.github/workflows/ci.yml.jinja`. Every step is a `uv run dx ...` call, so the port is mechanical.
+- Frontend: `copier copy` with `stack=frontend` renders; `pnpm dx check` + ui-kit tests + Vite production build succeed for `frontend/web-spa`.
+- Backend: structure/`dx check` unit tests include new MEM/CODE rules in the template kit. Full runtime/CI still follow HANDOFF.

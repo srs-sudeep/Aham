@@ -1,33 +1,26 @@
 # Aham
 
-One repo for the **template** and its **example outputs** (backend today, frontend next).
+One repo for the **template** and its **example outputs** (backend + frontend).
 
 ```
 Aham/
-├── template/     # Single Copier source (backend + frontend later)
+├── template/     # Single Copier source (stack: backend | frontend)
+│   ├── backend/  # FastAPI + platform-kit
+│   └── frontend/ # Vite + React + ui-kit
 ├── backend/      # Example generated API kits
-└── frontend/     # Example generated UI kits (empty for now)
+└── frontend/     # Example generated UI kits
 ```
 
-## One template, not two
-
-Keep a **single** `template/` folder with one `copier.yml`.
-
-- Today it generates FastAPI backends (monolith / microservices / polyrepo, Kafka, Nx/moon, …).
-- Later, add a Copier question such as `stack: backend | frontend` (or `full`) and Jinja
-  conditionals — same flow, no second template repo to maintain.
-
-Generate:
+## Generate
 
 ```bash
 uvx copier copy --trust ./template my-new-project
-# after publish:
-# uvx copier copy --trust gh:srs-sudeep/Aham my-new-project
+# choose stack=backend or stack=frontend
 ```
 
 Pull improvements into an existing project: `uvx copier update --trust`.
 
-## Example backends (`backend/`)
+## Backend examples (`backend/`)
 
 | Folder | Shape |
 |---|---|
@@ -37,8 +30,10 @@ Pull improvements into an existing project: `uvx copier update --trust`.
 | `mono-micro-kafka-nx` | Monorepo microservices + Kafka + Nx |
 | `mono-micro-moon` | Monorepo microservices + moon |
 
-## Example frontends (`frontend/`)
+## Frontend examples (`frontend/`)
 
-Reserved for UI starters produced from the same Copier template once the frontend path exists.
+| Folder | Shape |
+|---|---|
+| `web-spa` | Vite SPA + ui-kit (shadcn, settings/theme/i18n, items feature) |
 
 Details: [template/README.md](template/README.md) · [template/HANDOFF.md](template/HANDOFF.md)

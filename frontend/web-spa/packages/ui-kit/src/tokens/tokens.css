@@ -1,0 +1,113 @@
+:root {
+  --radius: 0.5rem;
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-size-h1: 1.875rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h3: 1.25rem;
+  --font-size-body: 0.9375rem;
+  --font-size-muted: 0.875rem;
+  --font-size-label: 0.8125rem;
+  --space-page: 1.5rem;
+  --density-pad: 1rem;
+
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 222 47% 20%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 222 47% 20%;
+  --sidebar: 210 40% 98%;
+  --sidebar-foreground: 222 47% 11%;
+}
+
+.dark {
+  --background: 222 47% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 47% 9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62% 50%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 212 27% 84%;
+  --sidebar: 222 47% 9%;
+  --sidebar-foreground: 210 40% 98%;
+}
+
+[data-color-preset="ocean"] {
+  --primary: 199 89% 35%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 199 89% 35%;
+  --accent: 199 80% 94%;
+  --accent-foreground: 199 89% 25%;
+}
+.dark[data-color-preset="ocean"],
+[data-color-preset="ocean"].dark {
+  --primary: 199 89% 55%;
+  --primary-foreground: 222 47% 7%;
+  --accent: 199 40% 18%;
+  --accent-foreground: 199 89% 85%;
+}
+
+[data-color-preset="forest"] {
+  --primary: 152 45% 28%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 152 45% 28%;
+  --accent: 152 40% 94%;
+  --accent-foreground: 152 45% 20%;
+}
+.dark[data-color-preset="forest"],
+[data-color-preset="forest"].dark {
+  --primary: 152 45% 48%;
+  --primary-foreground: 222 47% 7%;
+  --accent: 152 30% 16%;
+  --accent-foreground: 152 40% 85%;
+}
+
+[data-color-preset="contrast"] {
+  --primary: 0 0% 0%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 0 0% 0%;
+  --border: 0 0% 80%;
+}
+.dark[data-color-preset="contrast"],
+[data-color-preset="contrast"].dark {
+  --primary: 0 0% 100%;
+  --primary-foreground: 0 0% 0%;
+  --ring: 0 0% 100%;
+  --border: 0 0% 30%;
+}
+
+[data-density="compact"] {
+  --density-pad: 0.625rem;
+  --space-page: 1rem;
+  --font-size-body: 0.875rem;
+}
+
+[data-density="comfortable"] {
+  --density-pad: 1rem;
+  --space-page: 1.5rem;
+}

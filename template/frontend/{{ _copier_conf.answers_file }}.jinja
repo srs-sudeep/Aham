@@ -1,0 +1,9 @@
+# Changes here will be overwritten by Copier; DO NOT EDIT MANUALLY
+_commit: {{ _copier_conf.vcs_ref | default('HEAD') }}
+_src_path: {{ _copier_conf.src_path }}
+stack: {{ stack }}
+project_name: {{ project_name }}
+project_slug: {{ project_slug }}
+api_base_url: {{ api_base_url }}
+default_locale: {{ default_locale }}
+ai_tools: {{ ai_tools | tojson }}

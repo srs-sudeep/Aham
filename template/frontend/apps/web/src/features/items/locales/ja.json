@@ -1,0 +1,12 @@
+{
+  "items": {
+    "title": "アイテム",
+    "description": "API items モジュールに対応するサンプル機能",
+    "empty": "アイテムがありません。",
+    "name": "名前",
+    "create": "作成",
+    "detail": "アイテム詳細",
+    "back": "一覧へ戻る",
+    "mockBanner": "API に接続できないためモックデータを表示しています"
+  }
+}

@@ -1,0 +1,10 @@
+---
+description: Frontend project conventions
+alwaysApply: true
+---
+
+- Features live under `apps/web/src/features/<name>/{api,hooks,views,routes,locales}`.
+- Import UI only from `@aham/ui-kit` / `@aham/ui-kit/components`.
+- Core routes (`login`, shell, `settings`, 403, 404) are fixed — do not reinvent them.
+- Theme/locale only via PreferencesProvider / `/settings`.
+- Run `pnpm dx check` (full repo) before finishing.

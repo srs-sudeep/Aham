@@ -1,0 +1,8 @@
+---
+description: UI tokens and i18n
+globs: apps/web/src/**/*.{tsx,ts,css}
+---
+
+- No arbitrary colors/font sizes in features
+- No hardcoded user-facing strings in views
+- No documentElement theme hacks

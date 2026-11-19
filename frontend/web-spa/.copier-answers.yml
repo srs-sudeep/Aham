@@ -1,0 +1,9 @@
+# Changes here will be overwritten by Copier; DO NOT EDIT MANUALLY
+_commit: None
+_src_path: /Users/srs/Desktop/Dev/SASS/Aham/template
+stack: frontend
+project_name: Web SPA
+project_slug: web-spa
+api_base_url: http://localhost:8001
+default_locale: en
+ai_tools: ["claude", "cursor"]

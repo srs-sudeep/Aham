@@ -1,0 +1,20 @@
+{
+  "name": "{{ project_slug }}",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @{{ project_slug }}/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "dx": "pnpm --filter @aham/ui-kit dx",
+    "check": "pnpm dx check",
+    "new-feature": "pnpm dx new-feature"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "name": "@aham/ui-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "dx": "./dist/cli/main.js"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./components": "./src/components/index.ts",
+    "./tokens.css": "./src/tokens/tokens.css",
+    "./tailwind-preset": "./src/tokens/tailwind-preset.ts"
+  },
+  "scripts": {
+    "build": "tsup src/cli/main.ts --format esm --dts --outDir dist/cli --clean",
+    "dx": "tsx src/cli/main.ts",
+    "lint": "echo eslint-config-optional",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@radix-ui/react-avatar": "^1.1.2",
+    "@radix-ui/react-checkbox": "^1.1.3",
+    "@radix-ui/react-dialog": "^1.1.4",
+    "@radix-ui/react-dropdown-menu": "^2.1.4",
+    "@radix-ui/react-label": "^2.1.1",
+    "@radix-ui/react-scroll-area": "^1.2.2",
+    "@radix-ui/react-select": "^2.1.4",
+    "@radix-ui/react-separator": "^1.1.1",
+    "@radix-ui/react-slot": "^1.1.1",
+    "@radix-ui/react-switch": "^1.1.2",
+    "@radix-ui/react-tabs": "^1.1.2",
+    "@radix-ui/react-tooltip": "^1.1.6",
+    "@tanstack/react-query": "^5.62.8",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "i18next": "^24.2.0",
+    "lucide-react": "^0.469.0",
+    "react-i18next": "^15.2.0",
+    "sonner": "^1.7.1",
+    "tailwind-merge": "^2.6.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "eslint": "^9.17.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
