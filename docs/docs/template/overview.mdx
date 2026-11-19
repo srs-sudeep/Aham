@@ -21,6 +21,18 @@ template/
 - Protected baselines (`platform-kit`, `@aham/ui-kit`); product code in modules/features
 - Enforcement: `dx check`, hooks, pre-commit, CI, **example drift**
 
+```mermaid
+flowchart LR
+  Answers["Copier answers"] --> Backend["template/backend"]
+  Answers --> Frontend["template/frontend"]
+  Backend --> ExBE["backend/* examples"]
+  Frontend --> ExFE["frontend/web-spa"]
+  Drift["check-examples.sh"] -.-> ExBE
+  Drift -.-> ExFE
+```
+
+Runtime HLA/LLD (SPA ↔ API ↔ Postgres/Redis): [Architecture](../getting-started/architecture.mdx).
+
 ## Conditional backend tree
 
 Jinja folder names emit only what answers need:

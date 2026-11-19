@@ -10,10 +10,11 @@ sidebar_position: 16
 ```bash
 cp .env.example services/core-api/.env
 docker compose up -d postgres redis
+uv run dx db upgrade core-api
 uv run dx run core-api
 ```
 
-Modules: identity, billing, items. Redis required.
+Modules: identity, billing, categories, items. Redis required. Includes the initial Alembic revision for the full SaaS + catalog schema.
 
 ## `mono-micro-kafka-nx` / `mono-micro-moon`
 

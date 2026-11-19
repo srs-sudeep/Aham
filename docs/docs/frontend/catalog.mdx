@@ -7,7 +7,18 @@ sidebar_position: 6
 
 Path: `apps/web/src/modules/catalog/`.
 
-Two features: **items** (full CRUD) and **categories** (list/detail + dialogs).
+Two features: **items** (full CRUD) and **categories** (list/detail + dialogs). Both are tenant-scoped on the backend and gated by the `catalog` entitlement for mutating routes.
+
+## Permissions
+
+Match the SaaS resource strings in `ROLE_PERMISSIONS` / JWT claims:
+
+| Feature | Nav / list | Mutations |
+|---|---|---|
+| Items | `core-api.item:list` | `create` / `read` / `update` / `delete` |
+| Categories | `core-api.category:list` | `create` / `read` / `update` / `delete` |
+
+Dev login grants `core-api.item:*` and `core-api.category:*` (plus admin permissions).
 
 ## Items
 
@@ -15,29 +26,29 @@ Two features: **items** (full CRUD) and **categories** (list/detail + dialogs).
 |---|---|
 | API | `items.api.ts`, `items.keys.ts`, `items.handlers.ts` |
 | Hooks | `use-items`, `use-item-mutations` |
-| Model | zod schemas, mappers, constants |
+| Model | zod schemas, mappers, constants (`draft` \| `active` \| `inactive`) |
 | Views | List / Detail / Form pages + Form, Table, StatusBadge, Picker, pricing card |
-| Public | `ItemPicker`, `useItemOptions`, types via feature `index.ts` |
+| Public | `ItemPicker`, `useItemOptions`, types via feature `index.ts` / module `public.ts` |
 
 ### HTTP (relative to `VITE_API_BASE_URL`)
 
 | Method | Path |
 |---|---|
-| GET | `/items?page&pageSize&q&status` |
+| GET | `/items?page&pageSize&q&status&category_id` |
 | GET | `/items/:id` |
 | POST | `/items` |
 | PUT | `/items/:id` |
 | DELETE | `/items/:id` |
 
-List UI uses kit `ListPage` + `QueryState` + `FilterBar`; search state in URL (zod in `model/`).
+Wire fields include `sku`, `status`, `price`, `currency`, `category_id`. List UI uses kit `ListPage` + `QueryState` + `FilterBar`; search state lives in the URL (zod in `model/`).
 
 ## Categories
 
 | | |
 |---|---|
 | Routes | `/catalog/categories`, `/catalog/categories/$categoryId` |
-| API | `/categories` |
-| Permissions | `categories:list` / `read` (+ create/update/delete for mutations) |
+| API | `/categories` (same page/pageSize/q pattern) |
+| Permissions | `core-api.category:*` as above |
 | Shared | `shared/api/categories-lookup.api.ts`, `CategoryPicker` |
 
 ## Cross-feature / cross-module

@@ -9,6 +9,7 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: [
         'getting-started/overview',
+        'getting-started/architecture',
         'getting-started/generate-project',
         'getting-started/local-dev',
         'getting-started/meta-repo',
@@ -67,6 +68,7 @@ const sidebars: SidebarsConfig = {
         'frontend/auth',
         'frontend/routing',
         'frontend/catalog',
+        'frontend/admin',
         'frontend/connecting-api',
         'frontend/mocks',
         'frontend/theming-i18n',

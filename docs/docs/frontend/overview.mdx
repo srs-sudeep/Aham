@@ -29,12 +29,27 @@ apps/web/src/
   app/                 # PROTECTED: router, providers, registry
   core/                # PROTECTED: login, shell, home, settings, errors
   lib/                 # api client, auth helpers, i18n, MSW bootstrap
-  modules/<module>/    # product modules (catalog today)
+  modules/<module>/    # product modules (catalog + admin)
 packages/ui-kit/       # @aham/ui-kit
 nginx/                 # production SPA image
 ```
 
-Registry auto-discovers `modules/*/module.ts` via `import.meta.glob`.
+```mermaid
+flowchart LR
+  app["app/ registry"] --> catalog
+  app --> admin
+  catalog --> items
+  catalog --> categories
+  admin --> users
+  admin --> roles
+  admin --> billing
+  core["core/ login + shell"] --> app
+  kit["@aham/ui-kit"] --> core
+  kit --> catalog
+  kit --> admin
+```
+
+Registry auto-discovers `modules/*/module.ts` via `import.meta.glob`. Full HLA/LLD: [Architecture](../getting-started/architecture.mdx).
 
 ## Commands
 
@@ -59,6 +74,7 @@ pnpm --filter ./apps/web build
 | [Auth](./auth.mdx) | saas vs dev, storage, MFA/SSO |
 | [Routing](./routing.mdx) | Route table + guards |
 | [Catalog](./catalog.mdx) | items + categories reference |
+| [Admin](./admin.mdx) | users, roles, billing |
 | [API](./connecting-api.mdx) | Env + client |
 | [Mocks](./mocks.mdx) | MSW |
 | [Theming & i18n](./theming-i18n.mdx) | Preferences |

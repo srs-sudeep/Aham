@@ -25,10 +25,11 @@ uvx copier copy --trust ./template my-new-project
 
 ## Recommended first path (SaaS end-to-end)
 
-1. Start **mono-monolith** (Postgres + Redis + `core-api` on `:8001`)
-2. Start **web-spa** with `VITE_AUTH_MODE=saas` and `VITE_API_BASE_URL=http://localhost:8001/api/v1`
-3. Open API docs at `http://localhost:8001/docs` and SPA at `http://localhost:5173`
-4. Register / login / switch tenant in the SPA; exercise `/catalog/items`
+1. Skim [Architecture (HLA / LLD)](./architecture.mdx) for the system picture
+2. Start **mono-monolith** (Postgres + Redis + `core-api` on `:8001`)
+3. Start **web-spa** with `VITE_AUTH_MODE=saas` and `VITE_API_BASE_URL=http://localhost:8001/api/v1`
+4. Open API docs at `http://localhost:8001/docs` and SPA at `http://localhost:5173`
+5. Register / login / switch tenant in the SPA; exercise `/catalog/items`, `/catalog/categories`, and `/admin/users`
 
 Details: [Local development](./local-dev.mdx).
 
@@ -40,4 +41,4 @@ cd frontend/web-spa
 pnpm install && pnpm dev
 ```
 
-MSW serves in-memory `/items` and `/categories` per tenant header.
+MSW serves in-memory catalog (`/items`, `/categories`) and admin (`/auth/*`, `/billing/*`) handlers per tenant header.

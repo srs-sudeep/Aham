@@ -8,11 +8,16 @@ curl -LsSf https://astral.sh/uv/install.sh | sh   # once per machine
 uv sync --all-packages                             # python + deps from uv.lock
 uv run pre-commit install                          # commit-time checks
 {%- if repo_layout != 'polyrepo_kit' %}
-docker compose up -d postgres{% if messaging == 'kafka' %} kafka{% endif %}        # infra only
-uv run dx db upgrade {{ first_service }}                 # after the first migration exists
-uv run dx run {{ first_service }}                        # http://localhost:8001/docs
+docker compose up -d postgres{% if platform_profile == 'saas' %} redis{% endif %}{% if messaging == 'kafka' %} kafka{% endif %}                # infra only
+uv run dx db upgrade {{ first_service }}                      # after an Alembic revision exists
+uv run dx run {{ first_service }}                             # http://localhost:8001/docs
 {%- endif %}
 ```
+{%- if platform_profile == 'saas' and not is_microservices and repo_layout == 'monorepo' %}
+
+Modules in this example: **identity**, **billing**, **categories**, **items**. Pair with
+`frontend/web-spa` (`VITE_AUTH_MODE=saas`, `VITE_API_BASE_URL=http://localhost:8001/api/v1`).
+{%- endif %}
 
 ## Daily commands
 | Task | Command |

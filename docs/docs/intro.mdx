@@ -14,7 +14,7 @@ Aham/
 │   ├── backend/       # FastAPI + platform-kit
 │   └── frontend/      # Vite + React + ui-kit (modules → features)
 ├── backend/           # Rendered API examples
-├── frontend/web-spa/  # Rendered SPA example (catalog module)
+├── frontend/web-spa/  # Rendered SPA example (catalog + admin)
 ├── scripts/           # check-examples.sh (drift gate)
 ├── docs/              # This documentation site
 └── AGENTS.md          # Meta-repo rules for humans + AI
@@ -37,25 +37,26 @@ Wrong structure fails in the editor (hooks), at commit (`dx check`), and in CI �
 - Python 3.12+, FastAPI, SQLAlchemy 2 async, Alembic, uv, Ruff, Pyright
 - Layouts: monorepo monolith | microservices | polyrepo kit | polyrepo service
 - Optional Kafka (FastStream + outbox + contracts)
-- Default **SaaS spine**: local IdP, Redis refresh, tenancy, entitlements, audit; Phase 2 SSO/SCIM/API keys/MFA; optional Stripe
+- Default **SaaS spine**: local IdP, Redis refresh, tenancy, entitlements, audit, **IAM admin APIs** (users/roles/permissions), billing; Phase 2 SSO/SCIM/API keys/MFA; optional Stripe
+- Showcase catalog: tenant-scoped `categories` + `items` with `require_feature("catalog")`
 
 ### Frontend
 
 - Vite 6, React 19, TanStack Router/Query, Tailwind 4, pnpm
 - **ERP layout**: `modules/<module>/features/<feature>/`
 - Real **SaaS auth** (`VITE_AUTH_MODE=saas`) or **dev** mock + MSW
-- Reference module: **catalog** (items CRUD + categories)
+- Reference modules: **catalog** (items + categories) and **admin** (users, roles, billing)
 
 ## Example matrix
 
 | Path | Shape |
 |---|---|
-| `backend/mono-monolith` | Monolith + identity/billing/items + Redis |
+| `backend/mono-monolith` | Monolith + identity/billing/categories/items + Redis + initial Alembic |
 | `backend/mono-micro-kafka-nx` | Micro + Kafka + Nx (+ contracts) |
 | `backend/mono-micro-moon` | Micro + moon (HTTP only) |
 | `backend/poly-kit` | Publishes platform-kit + contracts |
 | `backend/poly-service-kafka` | Flat service pinning the kit |
-| `frontend/web-spa` | SPA + catalog + SaaS auth |
+| `frontend/web-spa` | SPA + catalog + admin + SaaS auth |
 
 :::tip Development rule
 Edit **`template/`** (and develop kit code in `backend/mono-monolith/packages/platform-kit`, then rsync). Do not hand-edit examples long-term — regenerate and let `check-examples.sh` keep them honest.
@@ -63,6 +64,7 @@ Edit **`template/`** (and develop kit code in `backend/mono-monolith/packages/pl
 
 ## Where to go next
 
+- [Architecture (HLA / LLD)](./getting-started/architecture.mdx) — Mermaid system + module diagrams
 - [Getting started](./getting-started/overview.mdx)
 - [Meta-repo workflow](./getting-started/meta-repo.mdx)
 - [Backend](./backend/overview.mdx) · [Frontend](./frontend/overview.mdx) · [Template](./template/overview.mdx)

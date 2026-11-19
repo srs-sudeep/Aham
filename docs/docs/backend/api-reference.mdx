@@ -27,7 +27,17 @@ Base path: **`/api/v1`**. Source: `backend/mono-monolith/services/core-api/src/c
 | POST | `/auth/switch-tenant` | `identity.tenant:update` | |
 | POST | `/auth/invitations` | `identity.user:create` | 201; may return token in dev |
 | POST | `/auth/invitations/accept` | PUBLIC | |
-| POST | `/auth/users/disable` | `identity.user:delete` | |
+| POST | `/auth/users/disable` | `identity.user:delete` | legacy disable body |
+| GET | `/auth/users` | `identity.user:list` | tenant memberships |
+| GET | `/auth/users/{user_id}` | `identity.user:read` | |
+| PATCH | `/auth/users/{user_id}` | `identity.user:update` | role and/or `membership_status` |
+| GET | `/auth/roles` | `identity.role:list` | system + tenant roles |
+| POST | `/auth/roles` | `identity.role:create` | tenant-custom role; 201 |
+| GET | `/auth/roles/{role_id}` | `identity.role:read` | |
+| PATCH | `/auth/roles/{role_id}` | `identity.role:update` | rename custom role |
+| DELETE | `/auth/roles/{role_id}` | `identity.role:delete` | custom only; 204 |
+| PUT | `/auth/roles/{role_id}/permissions` | `identity.role:update` | replace grants (custom) |
+| GET | `/auth/permissions` | `identity.permission:list` | permission catalog |
 | GET | `/auth/audit` | `identity.audit:list` | `since`, `until`, `action`, `limit`≤1000 |
 | POST | `/auth/mfa/enroll` | `identity.user:update` | Phase 2 |
 | POST | `/auth/mfa/confirm` | `identity.user:update` | Phase 2 |
@@ -62,16 +72,30 @@ Base path: **`/api/v1`**. Source: `backend/mono-monolith/services/core-api/src/c
 
 Cross-tenant billing mutations are gated by `PlatformOperatorDep` / `PLATFORM_OPERATOR_TENANT_ID`.
 
+## Categories — `/categories`
+
+Tenant-scoped; mutating routes require feature `catalog`.
+
+| Method | Path | Permission |
+|---|---|---|
+| POST | `/categories` | `core-api.category:create` |
+| GET | `/categories` | `core-api.category:list` (`page`, `pageSize`, `q`) |
+| GET | `/categories/{category_id}` | `core-api.category:read` |
+| PUT | `/categories/{category_id}` | `core-api.category:update` |
+| DELETE | `/categories/{category_id}` | `core-api.category:delete` (204) |
+
 ## Items — `/items`
+
+Tenant-scoped; mutating routes require feature `catalog`.
 
 | Method | Path | Permission |
 |---|---|---|
 | POST | `/items` | `core-api.item:create` |
-| GET | `/items` | `core-api.item:list` (`offset`, `limit` 1–100) |
+| GET | `/items` | `core-api.item:list` (`page`, `pageSize`, `q`, `status`, `category_id`) |
 | GET | `/items/{item_id}` | `core-api.item:read` |
-| PATCH | `/items/{item_id}` | `core-api.item:update` |
+| PUT | `/items/{item_id}` | `core-api.item:update` |
 | DELETE | `/items/{item_id}` | `core-api.item:delete` (204) |
 
 :::note Frontend pairing
-The SPA sets `VITE_API_BASE_URL=http://localhost:8001/api/v1`, so feature clients call `/items` relative to that base — matching these paths.
+The SPA sets `VITE_API_BASE_URL=http://localhost:8001/api/v1`, so feature clients call `/items`, `/categories`, `/auth/*`, and `/billing/*` relative to that base. Admin UI lives under `/admin/*` in the SPA.
 :::

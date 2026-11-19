@@ -24,27 +24,37 @@ From `core_api/permissions.py`:
 | Resource enum | Value |
 |---|---|
 | `ITEM` | `core-api.item` |
+| `CATEGORY` | `core-api.category` |
 | `IDENTITY_TENANT` | `identity.tenant` |
 | `IDENTITY_USER` | `identity.user` |
+| `IDENTITY_ROLE` | `identity.role` |
+| `IDENTITY_PERMISSION` | `identity.permission` |
 | `IDENTITY_AUDIT` | `identity.audit` |
 | `BILLING_PLAN` | `billing.plan` |
 | `BILLING_SUBSCRIPTION` | `billing.subscription` |
 
-## Default roles
+## Default roles (`ROLE_PERMISSIONS`)
 
 | Role | Grants |
 |---|---|
 | `admin` | `["*"]` |
-| `member` | tenant list/update, user create, plan list, subscription read, full item CRUD+list |
-| `viewer` | tenant list, audit list, plan list, subscription read, item read+list |
+| `member` | tenant list/update; user create/list/read/update; role list/read; permission list; plan list; subscription read; full item + category CRUD |
+| `viewer` | tenant list; user list/read; role list/read; permission list; audit list; plan list; subscription read; item + category read/list |
+
+`ROLE_PERMISSIONS` is the **bootstrap seed + code fallback**. On SaaS, live grants come from `roles` / `permissions` / `role_permissions` and are embedded in the access JWT at issue time.
+
+System roles (`admin` / `member` / `viewer`) are shared and **immutable** via the IAM admin APIs — customize by creating **tenant** roles.
 
 ## Resolution chain
 
 `PermissionResolver`:
 
-1. Redis cache (when available)
-2. DB tables `roles` / `role_permissions` / `permissions`
-3. Fallback to code `ROLE_PERMISSIONS`
+1. Prefer `permissions` claim on the access token (when present)
+2. Redis cache (when available)
+3. DB loader (`roles` / `role_permissions` / `permissions`)
+4. Fallback to code `ROLE_PERMISSIONS`
+
+Mutating roles/permissions should invalidate the resolver cache for that role name.
 
 ## TEN001
 

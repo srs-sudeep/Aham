@@ -5,29 +5,40 @@ sidebar_position: 2
 
 # Architecture
 
+System-wide HLA/LLD diagrams live in [Getting started → Architecture](../getting-started/architecture.mdx). This page is the **backend LLD**.
+
 ## Protected vs product
 
-```text
-packages/platform-kit/     # protected
-packages/contracts/        # protected when present
-services/<service>/
-  src/<package>/
-    main.py
-    settings.py
-    permissions.py         # protected
-    modules/<feature>/
+```mermaid
+flowchart TB
+  subgraph Protected
+    Kit["packages/platform-kit"]
+    Contracts["packages/contracts"]
+    Perm["permissions.py"]
+    CI[".github / AGENTS.md"]
+  end
+
+  subgraph Product["services/<service>/src/<package>"]
+    Main["main.py / settings.py"]
+    Mods["modules/<feature>/*"]
+  end
+
+  Kit --> Main
+  Main --> Mods
+  Perm --> Mods
 ```
 
-Also protected: `.github/`, `.claude/`, `.cursor/`, root `pyproject.toml`, `AGENTS.md`.
-
-Services never import each other — use `ServiceClient`.
+Also protected: `.claude/`, `.cursor/`, root `pyproject.toml`. Services never import each other — use `ServiceClient`.
 
 ## Module layers
 
-```text
-router → service → repository → models
-   ↓         ↓
-schemas   dependencies (wiring only)
+```mermaid
+flowchart LR
+  router --> schemas
+  router --> dependencies
+  dependencies --> service
+  service --> repository
+  repository --> models
 ```
 
 | File | Rules |

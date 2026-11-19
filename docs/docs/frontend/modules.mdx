@@ -45,10 +45,17 @@ export default defineModule({
 export default defineFeature({
   id: "items",
   routes: itemsRoutes,
-  nav: { labelKey: "items.title", to: "/catalog/items", permission: "items:list", icon: Package },
+  nav: {
+    labelKey: "items.title",
+    to: "/catalog/items",
+    permission: "core-api.item:list",
+    icon: Package,
+  },
   locales: { en, ja },
 });
 ```
+
+Reference modules in the example SPA: **catalog** and **admin**. Permission strings must match backend resources (`core-api.item`, `identity.user`, `billing.plan`, …).
 
 ## Import matrix (summary)
 

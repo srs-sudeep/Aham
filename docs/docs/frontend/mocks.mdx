@@ -18,11 +18,16 @@ Bootstrap: `apps/web/src/lib/mocks.ts` starts the worker when the flag is set.
 
 ## Handlers
 
-Feature-local `*.handlers.ts` (e.g. `items.handlers.ts`, categories handlers):
+Feature-local `*.handlers.ts`, registered from `lib/mocks.ts`:
+
+| Module | Handlers |
+|---|---|
+| Catalog | `items.handlers.ts`, `categories.handlers.ts` |
+| Admin | `users.handlers.ts`, `roles.handlers.ts`, `billing.handlers.ts` |
 
 - In-memory store keyed by `X-Tenant-ID` / stored tenant
-- Seed data (items `item-1…4`, etc.)
-- Full CRUD for items
+- Seed data for happy-path UI (items, categories, members, roles, plans)
+- CRUD / invite / checkout / cancel shapes match the live APIs
 
 There is **no silent API fallback** — without MSW (or a live API), requests fail normally.
 

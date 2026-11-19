@@ -1,0 +1,210 @@
+---
+title: Architecture (HLA / LLD)
+sidebar_position: 2
+---
+
+# Architecture
+
+High-level (HLA) and low-level (LLD) views of how the Aham template fits together when you run the **SaaS monolith + SPA** pairing (`backend/mono-monolith` + `frontend/web-spa`).
+
+## HLA — system context
+
+```mermaid
+flowchart LR
+  User([User / Admin])
+
+  subgraph Browser
+    SPA["Vite SPA<br/>catalog + admin modules"]
+  end
+
+  subgraph Platform["Docker Compose / local"]
+    API["core-api<br/>FastAPI + platform-kit"]
+    PG[(Postgres)]
+    Redis[(Redis)]
+  end
+
+  IdP[["Optional OIDC IdP"]]
+  Stripe[["Optional Stripe"]]
+
+  User --> SPA
+  SPA -->|"HTTPS /api/v1<br/>Bearer + refresh cookie"| API
+  API --> PG
+  API --> Redis
+  API -.-> IdP
+  API -.-> Stripe
+```
+
+| Piece | Role |
+|---|---|
+| SPA | ERP shell; product modules (`catalog`, `admin`); TanStack Query |
+| core-api | Identity, billing, showcase catalog; RBAC on every route |
+| Postgres | Tenants, users, roles, plans, catalog tables (+ RLS on catalog) |
+| Redis | Refresh tokens, permission cache, entitlement snapshots |
+
+## HLA — meta-repo (template → examples)
+
+```mermaid
+flowchart TB
+  subgraph Source["Source of truth"]
+    T["template/<br/>backend | frontend"]
+    KitDev["platform-kit developed in<br/>backend/mono-monolith/packages"]
+  end
+
+  subgraph Examples["Checked examples"]
+    BE["backend/mono-monolith …"]
+    FE["frontend/web-spa"]
+  end
+
+  Copier["uvx copier copy/update"]
+  Drift["scripts/check-examples.sh"]
+
+  KitDev -->|"rsync (excl. jinja)"| T
+  T --> Copier
+  Copier --> BE
+  Copier --> FE
+  Drift -->|"fail on hand-edits"| BE
+  Drift --> FE
+```
+
+## HLA — request path (authenticated SaaS)
+
+```mermaid
+sequenceDiagram
+  actor U as User
+  participant SPA as SPA
+  participant API as core-api
+  participant R as Redis
+  participant DB as Postgres
+
+  U->>SPA: Login
+  SPA->>API: POST /auth/login
+  API->>DB: verify user + membership
+  API->>R: store refresh hash
+  API-->>SPA: access JWT + Set-Cookie refresh
+  Note over SPA: JWT carries tid, roles, permissions
+
+  U->>SPA: Open /admin/users
+  SPA->>SPA: can(identity.user:list)?
+  SPA->>API: GET /auth/users<br/>Authorization + tid
+  API->>API: SecureRouter permission check
+  API->>DB: list memberships for tid
+  API-->>SPA: TenantUserOut[]
+```
+
+## LLD — backend module layers
+
+```mermaid
+flowchart TB
+  R["router.py<br/>SecureRouter + permission="]
+  S["schemas.py<br/>Pydantic I/O"]
+  SVC["service.py<br/>domain logic"]
+  DEP["dependencies.py<br/>wiring"]
+  REP["repository.py<br/>SQL only"]
+  M["models.py<br/>SQLAlchemy"]
+
+  R --> S
+  R --> DEP
+  DEP --> SVC
+  SVC --> REP
+  REP --> M
+  SVC -->|"raises AppError"| R
+```
+
+Rules of thumb:
+
+- Router ≤ 6 statements: parse → service → return schema
+- Service never imports FastAPI; repository never imports schemas
+- Cross-module only through another module’s `service` / `schemas` / `errors`
+
+## LLD — SaaS spine inside the monolith
+
+```mermaid
+flowchart LR
+  subgraph Identity
+    Auth["/auth/*"]
+    IAM["users / roles / permissions"]
+    Seed["seed_system()<br/>ROLE_PERMISSIONS"]
+  end
+
+  subgraph Billing
+    Plans["/billing/plans"]
+    Sub["/billing/subscription"]
+    Ent["require_feature / require_quota"]
+  end
+
+  subgraph Catalog
+    Cat["/categories"]
+    Items["/items"]
+  end
+
+  Auth --> IAM
+  Seed --> IAM
+  Sub --> Ent
+  Ent -->|"catalog"| Cat
+  Ent --> Items
+```
+
+## LLD — frontend modules → features
+
+```mermaid
+flowchart TB
+  Reg["app/registry.ts<br/>glob modules/*/module.ts"]
+
+  subgraph CatalogMod["modules/catalog"]
+    CMod["module.ts"]
+    Items["features/items"]
+    Cats["features/categories"]
+    CPub["public.ts"]
+  end
+
+  subgraph AdminMod["modules/admin"]
+    AMod["module.ts"]
+    Users["features/users"]
+    Roles["features/roles"]
+    Bill["features/billing"]
+  end
+
+  Reg --> CMod
+  Reg --> AMod
+  CMod --> Items
+  CMod --> Cats
+  AMod --> Users
+  AMod --> Roles
+  AMod --> Bill
+  Users -.->|"import useRoles<br/>from feature index"| Roles
+  Items -.->|"CategoryPicker"| CPub
+```
+
+Each feature owns `api/` · `hooks/` · `model/` · `views/` · `routes/` · `locales/`. Nav and route guards use the same permission strings as the API (`core-api.item:list`, `identity.user:list`, …).
+
+## LLD — permission resolution
+
+```mermaid
+flowchart TD
+  JWT["Access JWT"]
+  Claim{"permissions claim<br/>present?"}
+  Redis{"Redis cache<br/>hit?"}
+  DB["DB roles / role_permissions"]
+  Code["ROLE_PERMISSIONS fallback"]
+  Allow["Allow / deny route"]
+
+  JWT --> Claim
+  Claim -->|yes| Allow
+  Claim -->|no| Redis
+  Redis -->|yes| Allow
+  Redis -->|no| DB
+  DB --> Allow
+  DB -->|miss| Code
+  Code --> Allow
+```
+
+## Where to dig deeper
+
+| Topic | Doc |
+|---|---|
+| Backend layers & errors | [Backend architecture](../backend/architecture.mdx) |
+| Route tables | [API reference](../backend/api-reference.mdx) |
+| RBAC resources | [Permissions](../backend/permissions.mdx) |
+| SPA modules | [Frontend modules](../frontend/modules.mdx) |
+| Admin UI | [Admin module](../frontend/admin.mdx) |
+| Catalog UI | [Catalog module](../frontend/catalog.mdx) |

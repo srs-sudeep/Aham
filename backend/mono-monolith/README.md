@@ -7,10 +7,13 @@ Generated from the **FastAPI Platform Template** · layout: `monorepo` · modula
 curl -LsSf https://astral.sh/uv/install.sh | sh   # once per machine
 uv sync --all-packages                             # python + deps from uv.lock
 uv run pre-commit install                          # commit-time checks
-docker compose up -d postgres        # infra only
-uv run dx db upgrade core-api                 # after the first migration exists
-uv run dx run core-api                        # http://localhost:8001/docs
+docker compose up -d postgres redis                # infra only
+uv run dx db upgrade core-api                      # after an Alembic revision exists
+uv run dx run core-api                             # http://localhost:8001/docs
 ```
+
+Modules in this example: **identity**, **billing**, **categories**, **items**. Pair with
+`frontend/web-spa` (`VITE_AUTH_MODE=saas`, `VITE_API_BASE_URL=http://localhost:8001/api/v1`).
 
 ## Daily commands
 | Task | Command |

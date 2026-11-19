@@ -11,10 +11,12 @@ From `template/HANDOFF.md` and recent commits.
 
 ### Frontend
 
-- ERP **modules → features** layout (`catalog` = items + categories)
+- ERP **modules → features** layout
+- Reference modules: **catalog** (items + categories) and **admin** (users, roles, billing)
+- Permissions aligned to SaaS JWT resources (`core-api.item:*`, `identity.user:*`, `billing.*`, …)
 - ui-kit layers: primitives → components → layout/data/form/feedback/patterns
 - Real SaaS auth (`VITE_AUTH_MODE=saas`) + refresh cookies + tenant switch + MFA/SSO flows
-- Dev mode + MSW (`VITE_USE_MOCKS=1`)
+- Dev mode + MSW for catalog **and** admin (`VITE_USE_MOCKS=1`)
 - dx: `check`, `rules`, `new-module`, `new-feature`, `gen-api`
 - Vitest + Playwright smoke + Storybook (ui-kit)
 - Conventions: `frontend/CONVENTIONS.md` / `frontend/web-spa/CONVENTIONS.md`
@@ -22,14 +24,16 @@ From `template/HANDOFF.md` and recent commits.
 ### Backend
 
 - Layout matrix + `platform_profile` saas\|api
-- SaaS spine + Phase 2 (OIDC, SCIM, API keys, TOTP MFA); Stripe optional extra
+- SaaS spine + IAM admin APIs (`/auth/users|roles|permissions`) + Phase 2 (OIDC, SCIM, API keys, TOTP MFA); Stripe optional
+- Showcase catalog: tenant-scoped categories/items + `require_feature("catalog")`
 - `dx new-saas`, TEN001 tenant binding rule
+- **Initial Alembic revision** in `backend/mono-monolith` (identity/billing/catalog + RLS)
 - Meta CI + example drift script
 
 ## Next steps
 
-1. Runtime-verify register/login/switch-tenant, feature/quota, RLS IDOR
-2. Author Alembic revisions (versions dirs currently empty / rely on `DB_AUTO_CREATE` in tests)
+1. Runtime-verify register/login/switch-tenant, feature/quota, RLS IDOR end-to-end
+2. Carry Alembic revisions into fresh generates (or document copy-from-example)
 3. Optional `stack: full` monorepo with both checkers
 4. Preferences API sync (still localStorage)
 5. Wire OpenAPI codegen into feature `api/` as default workflow

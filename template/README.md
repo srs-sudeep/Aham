@@ -18,7 +18,8 @@ Baseline: **platform-kit** + `dx check` (structure, RBAC, layering, plus MEM/ASY
 ### `platform_profile=saas` (default for new backends)
 
 Local IdP (access + refresh), Redis, multi-tenant memberships, org switcher, DB roles/permissions,
-enterprise-shaped audit, plans/features/quotas with `require_feature` / `require_quota`, ManualProvider.
+IAM admin APIs (`/auth/users|roles|permissions`), enterprise-shaped audit, plans/features/quotas with
+`require_feature` / `require_quota`, ManualProvider. Showcase catalog: tenant-scoped categories + items.
 Phase 2 (implemented): per-tenant OIDC SSO, SCIM 2.0 Users, API keys (`aham_…` / `X-API-Key`),
 TOTP MFA. **Stripe is optional** — default billing is ManualProvider (`/billing/subscription/activate`).
 To enable cards: `platform-kit[stripe]` + `STRIPE_API_KEY` / `STRIPE_WEBHOOK_SECRET`.
@@ -26,7 +27,10 @@ To enable cards: `platform-kit[stripe]` + `STRIPE_API_KEY` / `STRIPE_WEBHOOK_SEC
 ```bash
 uv run dx new-saas <service>          # monolith: identity + billing modules
 docker compose up -d postgres redis
+uv run dx db upgrade <service>        # after you have (or copy) an Alembic revision
 ```
+
+The `mono-monolith` example ships an initial Alembic revision; fresh generates start with empty `versions/`.
 
 ## Stack: frontend
 
@@ -36,7 +40,9 @@ Source tree: [`frontend/`](frontend/).
 - TanStack Router + TanStack Query
 - Tailwind + **shadcn/ui** via `@aham/ui-kit` (tokens, presets, shell)
 - **Fixed core routes:** `/login`, AppShell `/`, `/settings`, `/forbidden`, `/not-found`
-- **Features:** `api/` · `hooks/` · `views/` · `routes/` · `locales/`
+- **Modules → features:** `api/` · `hooks/` · `views/` · `routes/` · `locales/`
+- Reference modules: **catalog** (items/categories) and **admin** (users/roles/billing)
+- Permissions use SaaS resource strings (`core-api.item:list`, `identity.user:list`, …)
 - `/settings`: light/dark/system, color presets, language (en/ja), density
 - `pnpm dx check` — full-repo FE rules (STR/LAY/UI/RBAC/DATA/MEM/I18N/THEME/…)
 
@@ -44,7 +50,8 @@ Source tree: [`frontend/`](frontend/).
 pnpm install
 pnpm dev
 pnpm dx check
-pnpm dx new-feature orders
+pnpm new-module orders
+pnpm new-feature orders/invoices
 ```
 
 ---

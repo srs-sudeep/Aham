@@ -36,7 +36,7 @@ Controlled by `VITE_AUTH_MODE`.
 
 `hasPermission` supports `public`, `*`, `*:*`, exact, `resource:*`, `*:action`.
 
-JWT → principal via claims `sub`, `tid`, `roles`, `permissions` (+ email/name).
+JWT → principal via claims `sub`, `tid`, `roles`, `permissions` (+ email/name). Access tokens issued by the SaaS IdP embed **DB-resolved** permission codes (not only role names).
 
 ## SaaS login flow (`lib/auth.ts`)
 
@@ -50,7 +50,13 @@ Access token in `Authorization: Bearer`; refresh via httpOnly cookie when backen
 
 ## Dev login
 
-`DEV_PRINCIPAL` grants `items:*`, `categories:*`, `tenantId: "acme"`, sets session with `dev-token`.
+`DEV_PRINCIPAL` sets `tenantId: "acme"` and grants:
+
+- Catalog: `core-api.item:*`, `core-api.category:*`
+- Admin: `identity.user:*`, `identity.role:*`, `identity.permission:list`
+- Billing: `billing.plan:list`, `billing.subscription:*`
+
+Session uses `dev-token` (no real JWT).
 
 ## Provider stack
 

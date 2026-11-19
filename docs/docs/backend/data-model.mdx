@@ -11,7 +11,7 @@ sidebar_position: 9
 |---|---|
 | `tenants` | Organizations |
 | `users` | Global users |
-| `roles` / `permissions` / `role_permissions` | RBAC catalog |
+| `roles` / `permissions` / `role_permissions` | RBAC catalog (system + tenant roles) |
 | `memberships` | User ↔ tenant + role |
 | `invitations` | Invite tokens |
 | `auth_connections` | SSO links |
@@ -24,21 +24,20 @@ sidebar_position: 9
 
 | Table | Purpose |
 |---|---|
-| `features` | Feature flags / capabilities |
+| `features` | Feature flags / capabilities (incl. `catalog`) |
 | `plans` / `plan_features` | Plan catalog |
 | `subscriptions` | Tenant subscription state |
 | `entitlement_snapshots` | Cached entitlements |
 | `entitlement_overrides` | Operator overrides |
 
-## Items (example)
+## Catalog (showcase)
 
-| Table | Columns |
+| Table | Notes |
 |---|---|
-| `items` | `name` (unique), `description` |
+| `categories` | `TenantScopedMixin`; unique `(tenant_id, name)`; Postgres RLS |
+| `items` | `TenantScopedMixin`; `sku`, `status`, `price`, `currency`, `category_id`; unique name/sku per tenant; RLS |
 
-:::note
-The example `items` table does **not** yet use `TenantScopedMixin`. SaaS RLS SQL templates show how to add tenant scoping for domain tables.
-:::
+Mutating catalog routes use `require_feature("catalog")`.
 
 ## Messaging (Kafka layouts)
 
@@ -51,6 +50,8 @@ The example `items` table does **not** yet use `TenantScopedMixin`. SaaS RLS SQL
 - Per service: `alembic.ini` + `alembic/env.py`
 - Loads models via `load_models("core_api", include_messaging=settings.kafka_enabled)`
 - `compare_type=True`
-- Example `versions/` may be empty — use `uv run dx db revision <svc> -m "..."` then `upgrade`
+- **`mono-monolith`** includes an initial revision covering identity, billing, and catalog (+ RLS on `categories` / `items`)
+- Fresh Copier outputs still start with empty `versions/` — run `uv run dx db revision <svc> -m "..."` after modules exist, or copy from the example
+- Docker entrypoint runs `alembic upgrade head` when `RUN_MIGRATIONS=true`
 
 Tests often enable `DB_AUTO_CREATE` for speed; production must use migrations (`DB_AUTO_CREATE` forbidden in prod).

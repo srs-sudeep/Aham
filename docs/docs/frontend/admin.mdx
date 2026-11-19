@@ -1,0 +1,58 @@
+---
+title: Admin module
+sidebar_position: 7
+---
+
+# Admin module
+
+Path: `apps/web/src/modules/admin/`.
+
+One module with three features aligned to the SaaS spine:
+
+| Feature | Routes | Backend |
+|---|---|---|
+| **users** | `/admin/users` | `GET/PATCH /auth/users`, `POST /auth/invitations` |
+| **roles** | `/admin/roles`, `/admin/roles/$roleId` | `GET/POST/PATCH/DELETE /auth/roles`, `PUT …/permissions`, `GET /auth/permissions` |
+| **billing** | `/admin/billing` | `GET /billing/plans`, `GET /billing/subscription`, `POST /billing/checkout`, `POST /billing/subscription/cancel` |
+
+## Permissions (SPA ↔ JWT)
+
+| Surface | Permission |
+|---|---|
+| Users nav / list | `identity.user:list` |
+| Invite | `identity.user:create` |
+| Edit / disable membership | `identity.user:update` |
+| Roles nav / list | `identity.role:list` |
+| Role detail | `identity.role:read` |
+| Create / edit / delete custom roles | `identity.role:create` / `update` / `delete` |
+| Permission catalog | `identity.permission:list` |
+| Billing nav / plans | `billing.plan:list` |
+| Subscription read | `billing.subscription:read` |
+| Checkout | `billing.subscription:create` |
+| Cancel | `billing.subscription:delete` |
+
+System roles (`admin` / `member` / `viewer`) are **read-only** in the UI; customize by creating tenant roles and editing their grants.
+
+## Users
+
+- List memberships (email, role, membership status, user status)
+- Invite dialog (`email` + role name)
+- Edit role; enable/disable membership (`active` \| `disabled`)
+- Role options come from the roles feature export (`useRoles` via feature `index.ts`)
+
+## Roles
+
+- List system + custom roles with permission counts
+- Create custom role (`snake_case` name + permission checkboxes)
+- Detail page: replace grants on custom roles only
+- Delete custom roles (system roles cannot be deleted)
+
+## Billing
+
+- Current subscription summary (plan, status, period end)
+- Plan cards with checkout (opens `checkout_url` when absolute)
+- Cancel subscription (confirm dialog)
+
+## MSW
+
+Handlers: `users.handlers.ts`, `roles.handlers.ts`, `billing.handlers.ts` — registered from `lib/mocks.ts` when `VITE_USE_MOCKS=1`.

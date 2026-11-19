@@ -24,6 +24,11 @@ const config: Config = {
     locales: ['en'],
   },
 
+  markdown: {
+    mermaid: true,
+  },
+  themes: ['@docusaurus/theme-mermaid'],
+
   presets: [
     [
       'classic',
@@ -90,6 +95,7 @@ const config: Config = {
           title: 'Docs',
           items: [
             {label: 'Introduction', to: '/docs/intro'},
+            {label: 'Architecture', to: '/docs/getting-started/architecture'},
             {label: 'Getting started', to: '/docs/getting-started/overview'},
             {label: 'Template', to: '/docs/template/overview'},
           ],

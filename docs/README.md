@@ -20,9 +20,9 @@ npm run build && npm run serve
 
 | Section | Highlights |
 |---|---|
-| Getting started | Local SaaS pairing, MSW mode, meta-repo drift |
+| Getting started | **HLA/LLD Mermaid diagrams**, local SaaS pairing, MSW, meta-repo drift |
 | Template | Copier options (`auth_mode`), generation, example drift |
-| Backend | API reference, env map, permissions, data model, tenancy, dx rules |
-| Frontend | Modules→features, auth, catalog, MSW, FE-* codes, testing |
+| Backend | API reference (IAM + catalog), permissions, data model, Alembic, tenancy, dx |
+| Frontend | Modules→features, auth, catalog, **admin**, MSW, FE-* codes, testing |
 
 Config: `docusaurus.config.ts` · Sidebars: `sidebars.ts`

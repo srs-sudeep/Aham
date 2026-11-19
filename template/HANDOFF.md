@@ -33,8 +33,10 @@ apps/web/src/
     # feature = {index.ts,api,hooks,model,views/{pages,components},routes,locales}
 ```
 
-- `catalog` (items + categories) is the reference module: tenant-scoped keys factory, hooks via `useApi`,
-  `ListPage` + `QueryState`, MSW handlers (`VITE_USE_MOCKS=1`), colocated tests.
+- Reference modules:
+  - **`catalog`** (items + categories): tenant-scoped keys, `useApi`, `ListPage` + `QueryState`, MSW, tests.
+    Permissions use `core-api.item:*` / `core-api.category:*`.
+  - **`admin`** (users, roles, billing): SPA surfaces for `/auth/users|roles|permissions` and `/billing/*`.
 - Cross-module imports only via `public.ts`; cross-feature only via the feature `index.ts`.
 - Full rules, import matrix and golden code: `frontend/CONVENTIONS.md` (plain Markdown, not rendered by Copier).
   Agent entry points: `AGENTS.md.jinja`, `CLAUDE.md`, `.cursor/rules/*.mdc`.
@@ -64,7 +66,8 @@ New `dx check` codes in platform-kit: `MEM001`, `MEM002`, `MEM003`, `CODE001`; b
 - Copier `platform_profile`: `saas` (default) | `api`
 - Kit: Redis, rate limit, TokenIssuer/refresh, tenancy+RLS, entitlements (features+quotas), audit, provider ports
 - `dx new-saas` / post-copy tasks scaffold identity + billing
-- Example: `backend/mono-monolith` has identity+billing modules + Redis in compose
+- Example: `backend/mono-monolith` has identity + billing + catalog (categories/items) + Redis + initial Alembic
+- IAM admin APIs: `/auth/users`, `/auth/roles`, `/auth/permissions` (system roles immutable)
 - Phase 2: OIDC SSO, SCIM Users, API keys, TOTP MFA; Stripe optional (`platform-kit[stripe]`)
 
 ## Next steps

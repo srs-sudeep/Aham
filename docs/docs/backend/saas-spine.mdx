@@ -14,7 +14,8 @@ Enabled when `platform_profile=saas` (default).
 | Local IdP | register/login; access JWT + hashed refresh in Redis |
 | Cookies | httpOnly refresh under `/api/v1/auth` (`TOKEN_DELIVERY=both`) |
 | Tenancy | memberships, select/switch tenant, `tid` claim |
-| Entitlements | plans/features/quotas |
+| IAM admin | users, roles, permissions under `/auth` (see below) |
+| Entitlements | plans/features/quotas; showcase `catalog` feature |
 | Audit | `/auth/audit` |
 | Rate limits | login/register |
 | Billing | ManualProvider default; Stripe optional |
@@ -27,7 +28,23 @@ uv run dx new-service identity --with-saas  # micro layout
 uv run dx new-service billing --with-saas
 ```
 
+Showcase catalog (monolith example / `--with-example`):
+
+```bash
+uv run dx new-catalog-example core-api   # or dx new-service --with-example
+```
+
 Compose: `postgres` + **`redis`**.
+
+## IAM admin APIs
+
+| Area | Endpoints |
+|---|---|
+| Users | `GET/PATCH /auth/users`, `GET /auth/users/{id}`, `POST /auth/invitations` |
+| Roles | `GET/POST /auth/roles`, `GET/PATCH/DELETE /auth/roles/{id}`, `PUT /auth/roles/{id}/permissions` |
+| Catalog | `GET /auth/permissions` |
+
+System roles are immutable; create tenant-custom roles to change grants. Seeds come from `ROLE_PERMISSIONS` via `IdentityService.seed_system()` (idempotent on register/invite).
 
 ## Phase 2 (implemented scaffolds)
 

@@ -28,8 +28,13 @@ apps/web/src/
 apps/web/e2e/               # Playwright smoke tests
 ```
 
-The `catalog` module (items, categories) is the reference example for lists,
-detail pages, forms, tenant-scoped query keys, MSW handlers and tests.
+Reference modules:
+
+- **`catalog`** — items + categories (lists, detail, forms, tenant-scoped keys, MSW)
+- **`admin`** — users, roles, billing against `/auth/*` and `/billing/*`
+
+SPA permission strings match the SaaS JWT resources (`core-api.item:*`,
+`identity.user:*`, `billing.plan:list`, …).
 
 ## Develop
 

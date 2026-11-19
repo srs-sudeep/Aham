@@ -27,17 +27,21 @@ Pull improvements into an existing project: `uvx copier update --trust`.
 |---|---|
 | `poly-kit` | Shared platform-kit + contracts (incl. SaaS helpers) |
 | `poly-service-kafka` | Standalone service + Kafka (pins local `poly-kit`) |
-| `mono-monolith` | Monorepo monolith + **SaaS spine** (identity, billing, Redis) |
+| `mono-monolith` | Monorepo monolith + **SaaS spine** (identity, billing, catalog, Redis) |
 | `mono-micro-kafka-nx` | Monorepo microservices + Kafka + Nx |
 | `mono-micro-moon` | Monorepo microservices + moon |
 
-Copier question `platform_profile=saas` adds Redis, local IdP, tenancy, entitlements (`dx new-saas`).
+`platform_profile=saas` adds Redis, local IdP, tenancy, entitlements, IAM admin APIs (`/auth/users|roles|permissions`), and billing. Showcase catalog: tenant-scoped `categories` + `items` (gated by `catalog` entitlement).
+
+`mono-monolith` ships an **initial Alembic revision** (identity + billing + catalog + RLS on catalog tables). Fresh generates still start with empty `versions/` until you run `dx db revision` or copy from the example.
 
 ## Frontend examples (`frontend/`)
 
 | Folder | Shape |
 |---|---|
-| `web-spa` | Vite SPA + ui-kit (module→feature layout, catalog demo, settings/theme/i18n) |
+| `web-spa` | Vite SPA + ui-kit — **catalog** (items/categories) + **admin** (users/roles/billing) |
+
+Permissions match the SaaS JWT resource strings (`core-api.item:*`, `identity.user:*`, `billing.*`, …). Pair with mono-monolith or use `VITE_AUTH_MODE=dev` + MSW.
 
 Details: [template/README.md](template/README.md) · [template/HANDOFF.md](template/HANDOFF.md)
 

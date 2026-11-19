@@ -12,7 +12,7 @@ cd backend/mono-monolith
 cp .env.example services/core-api/.env
 uv sync --all-packages
 docker compose up -d postgres redis
-uv run dx db upgrade core-api   # versions/ may be empty; tests often use DB_AUTO_CREATE
+uv run dx db upgrade core-api   # applies initial Alembic revision (identity/billing/catalog)
 uv run dx run core-api
 ```
 
@@ -42,6 +42,8 @@ FRONTEND_URL=http://localhost:5173
 REFRESH_COOKIE_SECURE=false   # local HTTP
 ```
 
+Tests often set `DB_AUTO_CREATE=true`. For Docker / prod-like runs, leave it off and use Alembic (`DB_AUTO_CREATE` is forbidden in prod).
+
 ## Backend — Kafka variants
 
 ```bash
@@ -69,6 +71,8 @@ pnpm install
 pnpm dev    # :5173
 ```
 
+Exercise `/catalog/items`, `/catalog/categories`, and `/admin/{users,roles,billing}` after registering a tenant (or minting a token with the matching permissions).
+
 ## Frontend — UI-only with MSW
 
 ```bash
@@ -78,6 +82,8 @@ VITE_USE_MOCKS=1
 pnpm mocks:init   # once — writes public/ mockServiceWorker.js
 pnpm dev
 ```
+
+MSW covers catalog + admin handlers (`lib/mocks.ts`).
 
 ## Quality gates
 
